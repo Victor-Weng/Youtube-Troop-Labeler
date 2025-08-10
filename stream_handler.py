@@ -152,7 +152,6 @@ class StreamHandler:
         try:
             cv2.namedWindow('Troop Detection', cv2.WINDOW_NORMAL)
             cv2.resizeWindow('Troop Detection', 1280, 720)
-            gui_supported = True
             self.logger.info("GUI mode enabled - video will be displayed")
         except cv2.error:
             self.logger.warning("GUI not supported - running in headless mode")
