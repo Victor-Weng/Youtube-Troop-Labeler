@@ -163,11 +163,12 @@ class TroopDetector:
 
                 return self._parse_roboflow_results(results, offset)
             else:
-                # fallback to template matching detection list
-                return self._template_matching_fallback(region, offset)
+                # No workspace configured - return empty results
+                self.logger.warning("No Roboflow workspace configured")
+                return []
         except Exception as e:
             self.logger.error(f"Roboflow region inference failed: {e}")
-            return self._template_matching_fallback(region, offset)
+            return []
 
     def _parse_roboflow_results(self, results, offset: Tuple[int, int]) -> List[Dict]:
         cards = []
@@ -220,34 +221,6 @@ class TroopDetector:
             if name.lower() == cl:
                 return id
         return -1
-
-    def _template_matching_fallback(self, region: np.ndarray, offset: Tuple[int, int]) -> List[Dict]:
-        try:
-            cards = []
-            if region is None or region.size == 0:
-                return []
-            gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-            edges = cv2.Canny(gray, 50, 150)
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for contour in contours:
-                epsilon = 0.02 * cv2.arcLength(contour, True)
-                approx = cv2.approxPolyDP(contour, epsilon, True)
-                if len(approx) == 4:
-                    x, y, w, h = cv2.boundingRect(contour)
-                    if 50 < w < 200 and 50 < h < 200:
-                        center_x = offset[0] + x + w // 2
-                        center_y = offset[1] + y + h // 2
-                        cards.append({
-                            'class_id': -1,
-                            'card_name': 'unknown_card',
-                            'bbox': (offset[0] + x, offset[1] + y, w, h),
-                            'confidence': 0.5,
-                            'center': (center_x, center_y)
-                        })
-            return cards
-        except Exception as e:
-            self.logger.error(f"Error in template matching fallback: {str(e)}")
-            return []
 
     def update_hand_states(self, frame: np.ndarray) -> Tuple[Dict, Dict]:
         """
@@ -386,6 +359,16 @@ class TroopDetector:
         # Find contours
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
+        # Debug: Track what gets filtered out
+        debug_stats = {
+            'raw_contours': len(contours),
+            'size_filtered': 0,
+            'shape_filtered': 0,
+            'density_filtered': 0,
+            'color_filtered': 0,
+            'final_objects': 0
+        }
+        
         detected_objects = []
         
         for contour in contours:
@@ -394,6 +377,7 @@ class TroopDetector:
             # Filter by size (more restrictive now)
             if area < config.MIN_OBJECT_SIZE or area > config.MAX_OBJECT_SIZE:
                 continue
+            debug_stats['size_filtered'] += 1
             
             # Get bounding box (relative to tracking region)
             x, y, w, h = cv2.boundingRect(contour)
@@ -402,11 +386,13 @@ class TroopDetector:
             aspect_ratio = w / h if h > 0 else 0
             if aspect_ratio < 0.3 or aspect_ratio > 3.0:  # Keep roughly square-ish objects
                 continue
+            debug_stats['shape_filtered'] += 1
             
             # Filter by area vs bounding box ratio (avoid sparse/scattered detections)
             bbox_area = w * h
-            if bbox_area > 0 and (area / bbox_area) < 0.3:  # Object should fill at least 30% of bounding box
+            if bbox_area > 0 and (area / bbox_area) < 0.4:  # Increased from 0.3 to 0.4 - more restrictive
                 continue
+            debug_stats['density_filtered'] += 1
             
             # Convert to absolute frame coordinates
             abs_x = track_x + x
@@ -415,6 +401,7 @@ class TroopDetector:
             # Filter objects that are mostly arena-colored (background)
             if self._is_background_object(frame, abs_x, abs_y, w, h):
                 continue
+            debug_stats['color_filtered'] += 1
             
             obj = {
                 'bbox': (abs_x, abs_y, w, h),
@@ -423,6 +410,17 @@ class TroopDetector:
                 'confidence': min(area / config.MAX_OBJECT_SIZE, 1.0)
             }
             detected_objects.append(obj)
+        
+        debug_stats['final_objects'] = len(detected_objects)
+        
+        # Log debug info every 10 frames to avoid spam
+        if self.frame_count % 10 == 0:
+            self.logger.debug(f"Detection stats: {debug_stats['raw_contours']} raw -> "
+                            f"{debug_stats['size_filtered']} size OK -> "
+                            f"{debug_stats['shape_filtered']} shape OK -> "
+                            f"{debug_stats['density_filtered']} density OK -> "
+                            f"{debug_stats['color_filtered']} color OK -> "
+                            f"{debug_stats['final_objects']} final objects")
         
         return detected_objects
     
@@ -464,10 +462,11 @@ class TroopDetector:
                 self.logger.debug("No cards played recently - no tracking allowed")
                 return []
             else:
-                # Allow tracking proportional to cards played
-                max_tracking_slots = min(config.MAX_TRACKED_OBJECTS, cards_played_recently * 2)  # *2 for troop spawns
+                # Allow tracking proportional to cards played, but much more restrictive
+                max_tracking_slots = min(config.MAX_TRACKED_OBJECTS, cards_played_recently + 1)  # Only +1 buffer
                 self.logger.debug(f"Cards played: {cards_played_recently}, allowing up to {max_tracking_slots} tracked objects")
-                filtered_objects = filtered_objects[:max_tracking_slots]
+                # Only take the most significant objects (sorted by area)
+                filtered_objects = sorted(filtered_objects, key=lambda x: x['area'], reverse=True)[:max_tracking_slots]
         
         # Step 1: Update existing tracked objects with velocity prediction
         for obj_id, obj_info in self.tracked_objects.items():

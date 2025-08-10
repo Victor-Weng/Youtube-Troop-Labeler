@@ -8,10 +8,10 @@ RESIZE_FACTOR = 1.0  # Keep original size
 START_TIME_SECONDS = 10.0  # Start analysis at this time (in seconds)
 
 # Detection settings
-PIXEL_DIFF_THRESHOLD = 100  # Even higher threshold (less sensitive to background movement)
-MIN_OBJECT_SIZE = 800  # Much larger minimum (filters out small movements)
-MAX_OBJECT_SIZE = 6000  # Smaller maximum (focus on troop-sized objects)
-MOTION_BLUR_KERNEL_SIZE = 9  # Larger kernel for more smoothing
+PIXEL_DIFF_THRESHOLD = 120  # Very high threshold (very insensitive to background movement)
+MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
+MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
+MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
 
 # Tracking settings
 MAX_TRACKING_FRAMES = 300  # How long to track an object

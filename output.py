@@ -71,7 +71,7 @@ class OutputWriter:
         
         if self.frame_count % 10 == 0:
             save_status = "saved" if config.SAVE_IMAGES else "processed (not saved)"
-            self.logger.info(f"{save_status.capitalize()} {self.frame_count} frames with {self.object_count} total objects")
+            self.logger.info(f"{save_status.capitalize()} {self.frame_count} frames with {self.object_count} total objects (this frame: {len(objects)} objects)")
     
     def save_summary(self):
         """Save processing summary"""
