@@ -3,12 +3,13 @@ Configuration for Clash Royale Troop Detection Tool
 """
 
 # Video processing settings
-FRAME_SKIP = 30  # Process every 30th frame (1 FPS from 30 FPS video)
+FRAME_SKIP = 60  # Process every 30th frame (1 FPS from 30 FPS video)
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 10.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 20.0  # Start analysis at this time (in seconds)
 
 # Detection settings
-PIXEL_DIFF_THRESHOLD = 120  # Very high threshold (very insensitive to background movement)
+# Very high threshold (very insensitive to background movement)
+PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
@@ -29,9 +30,9 @@ SAVE_IMAGES = False  # Set to False to disable image saving during testing
 # YouTube URLs to process (or set TEST_VIDEO_PATH for local file)
 YOUTUBE_URLS = [
     "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale",
-    
+
 ]
-#"https://www.youtube.com/watch?v=kYD3v_VAhBI&t=508s&ab_channel=Ryley-ClashRoyale",
+# "https://www.youtube.com/watch?v=kYD3v_VAhBI&t=508s&ab_channel=Ryley-ClashRoyale",
 
 # For testing with local video file, set this path and YOUTUBE_URLS to empty list
 TEST_VIDEO_PATH = None  # "test_video.mp4"
@@ -49,7 +50,7 @@ ALLY_HAND_COORDS = [
     (383, 1099, 81, 89),   # Card 4
 ]
 
-# Enemy hand positions (top of screen) - adjust these based on your video  
+# Enemy hand positions (top of screen) - adjust these based on your video
 ENEMY_HAND_COORDS = [
     (94, 120, 91, 86),    # Card 1
     (192, 122, 81, 84),    # Card 2

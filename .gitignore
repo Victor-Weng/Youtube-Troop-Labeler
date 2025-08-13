@@ -20,13 +20,13 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.env
 
 # Virtual environments
 venv/
 env/
 ENV/
 .venv/
-.env/
 
 # IDE
 .vscode/

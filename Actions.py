@@ -3,6 +3,8 @@ import os
 from datetime import datetime
 import time
 import platform
+import config_new as config
+
 
 class Actions:
     def __init__(self):
@@ -11,30 +13,33 @@ class Actions:
         self.images_folder = os.path.join(self.script_dir, 'main_images')
 
         # Define screen regions based on OS
-        if self.os_type == "Darwin":  # macOS
-            self.TOP_LEFT_X = 1013
-            self.TOP_LEFT_Y = 120
-            self.BOTTOM_RIGHT_X = 1480
-            self.BOTTOM_RIGHT_Y = 683
-            self.FIELD_AREA = (self.TOP_LEFT_X, self.TOP_LEFT_Y, self.BOTTOM_RIGHT_X, self.BOTTOM_RIGHT_Y)
+        self.TOP_LEFT_X = 0
+        self.TOP_LEFT_Y = 0
+        self.BOTTOM_RIGHT_X = 1280
+        self.BOTTOM_RIGHT_Y = 720
+        self.FIELD_AREA = (self.TOP_LEFT_X, self.TOP_LEFT_Y,
+                           self.BOTTOM_RIGHT_X, self.BOTTOM_RIGHT_Y)
 
-            self.WIDTH = self.BOTTOM_RIGHT_X - self.TOP_LEFT_X
-            self.HEIGHT = self.BOTTOM_RIGHT_Y - self.TOP_LEFT_Y
-        elif self.os_type == "Windows": # windows
-            self.TOP_LEFT_X = 1376
-            self.TOP_LEFT_Y = 120
-            self.BOTTOM_RIGHT_X = 1838
-            self.BOTTOM_RIGHT_Y = 769
-            self.FIELD_AREA = (self.TOP_LEFT_X, self.TOP_LEFT_Y, self.BOTTOM_RIGHT_X, self.BOTTOM_RIGHT_Y)
-            
-            self.WIDTH = self.BOTTOM_RIGHT_X - self.TOP_LEFT_X
-            self.HEIGHT = self.BOTTOM_RIGHT_Y - self.TOP_LEFT_Y
-            
-            # Add card bar coordinates for Windows
-            self.CARD_BAR_X = 1450
-            self.CARD_BAR_Y = 847
-            self.CARD_BAR_WIDTH = 1862 - 1450
-            self.CARD_BAR_HEIGHT = 971 - 847
+        self.WIDTH = self.BOTTOM_RIGHT_X - self.TOP_LEFT_X
+        self.HEIGHT = self.BOTTOM_RIGHT_Y - self.TOP_LEFT_Y
+
+        ALLY_COORDS = config.ALLY_HAND_COORDS
+        ENEMY_COORDS = config.ENEMY_HAND_COORDS
+
+        # Add card bar coordinates for Ally Hand
+        self.ALLY_CARD_BAR_X = ALLY_COORDS[0][0]
+        self.ALLY_CARD_BAR_Y = ALLY_COORDS[0][1]
+        # Fix: Calculate proper width to include all 4 cards
+        self.ALLY_CARD_BAR_WIDTH = (
+            ALLY_COORDS[3][0] + ALLY_COORDS[3][2]) - ALLY_COORDS[0][0]
+        self.ALLY_CARD_BAR_HEIGHT = ALLY_COORDS[0][3]
+        # Add card bar coordinates for Enemy Hand
+        self.ENEMY_CARD_BAR_X = ENEMY_COORDS[0][0]
+        self.ENEMY_CARD_BAR_Y = ENEMY_COORDS[0][1]
+        # Fix: Calculate proper width to include all 4 cards
+        self.ENEMY_CARD_BAR_WIDTH = (
+            ENEMY_COORDS[3][0] + ENEMY_COORDS[3][2]) - ENEMY_COORDS[0][0]
+        self.ENEMY_CARD_BAR_HEIGHT = ENEMY_COORDS[0][3]
 
         # Card position to key mapping
         self.card_keys = {
@@ -43,53 +48,90 @@ class Actions:
             2: '3',  # Changed from 3 to 2
             3: '4'   # Changed from 4 to 3
         }
-        
+
         # Card name to position mapping (will be updated during detection)
-        self.current_card_positions = {}
+        self.current_ally_card_positions = {}
+        self.current_enemy_card_positions = {}
 
     def capture_area(self, save_path):
-        screenshot = pyautogui.screenshot(region=(self.TOP_LEFT_X, self.TOP_LEFT_Y, self.WIDTH, self.HEIGHT))
+        screenshot = pyautogui.screenshot(
+            region=(self.TOP_LEFT_X, self.TOP_LEFT_Y, self.WIDTH, self.HEIGHT))
         screenshot.save(save_path)
 
-    def capture_card_area(self, save_path):
+    def capture_card_area(self, save_path, player_type="ally"):
         """Capture screenshot of card area"""
-        screenshot = pyautogui.screenshot(region=(
-            self.CARD_BAR_X, 
-            self.CARD_BAR_Y, 
-            self.CARD_BAR_WIDTH, 
-            self.CARD_BAR_HEIGHT
-        ))
+        if player_type.lower() == "ally":
+            region = (self.ALLY_CARD_BAR_X, self.ALLY_CARD_BAR_Y,
+                      self.ALLY_CARD_BAR_WIDTH, self.ALLY_CARD_BAR_HEIGHT)
+        else:  # enemy
+            region = (self.ENEMY_CARD_BAR_X, self.ENEMY_CARD_BAR_Y,
+                      self.ENEMY_CARD_BAR_WIDTH, self.ENEMY_CARD_BAR_HEIGHT)
+
+        screenshot = pyautogui.screenshot(region=region)
         screenshot.save(save_path)
 
-    def capture_individual_cards(self):
-        """Capture and split card bar into individual card images"""
-        screenshot = pyautogui.screenshot(region=(
-            self.CARD_BAR_X, 
-            self.CARD_BAR_Y, 
-            self.CARD_BAR_WIDTH, 
-            self.CARD_BAR_HEIGHT
-        ))
-        
-        # Calculate individual card widths
-        card_width = self.CARD_BAR_WIDTH // 4
+    def capture_individual_cards(self, frame=None, player_type="ally"):
+        """
+        Capture and split card bar into individual card images
+
+        Args:
+            frame: numpy array of the video frame (if None, uses screen capture)
+            player_type: "ally" or "enemy"
+        """
+        player_type = player_type.lower()
+
+        # Get coordinates and region based on player type
+        if player_type == "ally":
+            coords = config.ALLY_HAND_COORDS
+            region = (self.ALLY_CARD_BAR_X, self.ALLY_CARD_BAR_Y,
+                      self.ALLY_CARD_BAR_WIDTH, self.ALLY_CARD_BAR_HEIGHT)
+        else:  # enemy
+            coords = config.ENEMY_HAND_COORDS
+            region = (self.ENEMY_CARD_BAR_X, self.ENEMY_CARD_BAR_Y,
+                      self.ENEMY_CARD_BAR_WIDTH, self.ENEMY_CARD_BAR_HEIGHT)
+
+        if frame is not None:
+            import cv2
+            # Extract region from frame instead of screen
+            x, y, w, h = region
+            screenshot_array = frame[y:y+h, x:x+w]
+            # Convert to PIL Image for compatibility with existing code
+            from PIL import Image
+            screenshot = Image.fromarray(cv2.cvtColor(
+                screenshot_array, cv2.COLOR_BGR2RGB))
+        else:
+            screenshot = pyautogui.screenshot(region=region)
+
         cards = []
-        
-        # Split into 4 individual card images
-        for i in range(4):
-            left = i * card_width
-            card_img = screenshot.crop((left, 0, left + card_width, self.CARD_BAR_HEIGHT))
-            save_path = os.path.join(self.script_dir, 'screenshots', f"card_{i+1}.png")
+        # Create screenshots directory if needed
+        screenshots_dir = os.path.join(self.script_dir, 'screenshots')
+        os.makedirs(screenshots_dir, exist_ok=True)
+
+        # Use exact coordinates from config instead of dividing by 4
+        for i, (x, y, w, h) in enumerate(coords):
+            # Calculate relative position within the captured screenshot
+            rel_x = x - region[0]
+            rel_y = y - region[1]
+
+            # Crop individual card
+            card_img = screenshot.crop((rel_x, rel_y, rel_x + w, rel_y + h))
+            save_path = os.path.join(
+                screenshots_dir, f"{player_type}_card_{i+1}.png")
             card_img.save(save_path)
             cards.append(save_path)
-        
-        return cards
+
+        return {
+            'cards': cards,
+            'player_type': player_type
+        }
 
     def count_elixir(self):
         if self.os_type == "Darwin":
             for i in range(10, 0, -1):
                 image_file = os.path.join(self.images_folder, f"{i}elixir.png")
                 try:
-                    location = pyautogui.locateOnScreen(image_file, confidence=0.5, grayscale=True)
+                    location = pyautogui.locateOnScreen(
+                        image_file, confidence=0.5, grayscale=True)
                     if location:
                         return i
                 except Exception as e:
@@ -107,19 +149,26 @@ class Actions:
         else:
             return 0
 
-    def update_card_positions(self, detections):
+    def update_card_positions(self, detections, player_type="ally"):
         """
         Update card positions based on detection results
         detections: list of dictionaries with 'class' and 'x' position
+        player_type: "ally" or "enemy"
         """
         # Sort detections by x position (left to right)
         sorted_cards = sorted(detections, key=lambda x: x['x'])
-        
-        # Map cards to positions 0-3 instead of 1-4
-        self.current_card_positions = {
-            card['class']: idx  # Removed +1 
+
+        # Map cards to positions 0-3
+        card_positions = {
+            card['class']: idx
             for idx, card in enumerate(sorted_cards)
         }
+
+        # Store in appropriate dictionary based on player type
+        if player_type.lower() == "ally":
+            self.current_ally_card_positions = card_positions
+        else:  # enemy
+            self.current_enemy_card_positions = card_positions
 
     def card_play(self, x, y, card_index):
         print(f"Playing card {card_index} at position ({x}, {y})")
@@ -136,7 +185,8 @@ class Actions:
             print(f"Invalid card index: {card_index}")
 
     def click_battle_start(self):
-        button_image = os.path.join(self.images_folder, "battlestartbutton.png")
+        button_image = os.path.join(
+            self.images_folder, "battlestartbutton.png")
         confidences = [0.8, 0.7, 0.6, 0.5]  # Try multiple confidence levels
 
         # Define the region (left, top, width, height) for the correct battle button
@@ -144,7 +194,8 @@ class Actions:
 
         while True:
             for confidence in confidences:
-                print(f"Looking for battle start button (confidence: {confidence})")
+                print(
+                    f"Looking for battle start button (confidence: {confidence})")
                 try:
                     location = pyautogui.locateOnScreen(
                         button_image,
@@ -187,12 +238,14 @@ class Actions:
 
                 if winner_location:
                     _, y = pyautogui.center(winner_location)
-                    print(f"Found 'Winner' at y={y} with confidence {confidence}")
+                    print(
+                        f"Found 'Winner' at y={y} with confidence {confidence}")
                     result = "victory" if y > 402 else "defeat"
                     time.sleep(3)
                     # Click the "Play Again" button at a fixed coordinate (adjust as needed)
                     play_again_x, play_again_y = 1522, 913  # Example coordinates
-                    print(f"Clicking Play Again at ({play_again_x}, {play_again_y})")
+                    print(
+                        f"Clicking Play Again at ({play_again_x}, {play_again_y})")
                     pyautogui.moveTo(play_again_x, play_again_y, duration=0.2)
                     pyautogui.click()
                     return result
