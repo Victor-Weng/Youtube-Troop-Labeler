@@ -4,6 +4,7 @@ from typing import List, Tuple
 import numpy as np
 from inference_sdk import InferenceHTTPClient
 from dotenv import load_dotenv
+from troop_tracker import TroopTracker
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,7 +27,13 @@ class TroopDetector:
         # Arena tracking
         self.arena_background_color = None
         self.previous_arena_frame = None
+        self.current_full_frame = None
+        self.previous_full_frame = None
         self.bg_subtractor = None
+
+        # Troop tracking
+        self.troop_tracker = TroopTracker(
+            max_distance=80.0, max_missing_frames=600)
 
     def setup_card_roboflow(self):
         api_key = os.getenv('ROBOFLOW_API_KEY')
@@ -134,8 +141,13 @@ class TroopDetector:
         # Always update background model
         fg_mask = self.bg_subtractor.apply(current_region)
 
-        # Only detect new objects when cards are placed
+        # Store current region for tracking
+        self.current_tracking_region = current_region
+        self.tracking_offset = (track_x, track_y)
+
+        # Only detect NEW objects when cards are placed
         if not card_changes:
+            self.latest_detection = None
             self.previous_arena_frame = frame.copy()
             return debug_frame
 
@@ -179,18 +191,29 @@ class TroopDetector:
             w, h = best_object['w'], best_object['h']
 
             # Determine card type and player
-            label = "Unknown_Troop"
+            card_type = "Unknown"
+            player = "Unknown"
             for card_name in card_changes:
                 if card_name != "Unknown":
                     if ally_placed and card_name in ally_placed:
-                        which = "ally"
+                        player = "ally"
                     elif enemy_placed and card_name in enemy_placed:
-                        which = "enemy"
+                        player = "enemy"
                     else:
-                        which = "ally" if abs_y > frame.shape[0] // 2 else "enemy"
+                        player = "ally" if abs_y > frame.shape[0] // 2 else "enemy"
 
-                    label = f"{which}_{card_name}"
+                    card_type = card_name
                     break
+
+            label = f"{player}_{card_type}"
+
+            # Add card type and player info to detection for tracker
+            best_object['card_type'] = card_type
+            best_object['player'] = player
+
+            # Convert to absolute coordinates for tracker
+            best_object['x'] = abs_x
+            best_object['y'] = abs_y
 
             # Draw final detection (thick red rectangle)
             cv2.rectangle(debug_frame, (abs_x, abs_y),
@@ -202,6 +225,11 @@ class TroopDetector:
 
             print(
                 f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
+
+            # Store detection for return
+            self.latest_detection = best_object
+        else:
+            self.latest_detection = None
 
         # Update for next frame
         self.previous_arena_frame = frame.copy()
@@ -378,6 +406,9 @@ class TroopDetector:
 
     def process_frame(self, frame: np.ndarray, frame_number: int) -> Tuple[List, np.ndarray, List]:
         """Process single frame and detect cards"""
+        # Initialize detection storage
+        self.latest_detection = None
+
         # Detect ally cards
         ally_cards = self.detect_hand_cards(frame, "ally")
 
@@ -404,8 +435,32 @@ class TroopDetector:
         debug_frame = self.track_arena_changes(
             frame, all_changes, ally_placed, enemy_placed)
 
-        # Return empty lists for compatibility
-        detected_objects = []
+        # Prepare detections for tracker
+        detections_for_tracker = []
+
+        # Add new detections from card placements
+        if hasattr(self, 'latest_detection') and self.latest_detection:
+            detections_for_tracker.append(self.latest_detection)
+
+        # Add continuous tracking detections for existing troops using optical flow
+        if self.previous_full_frame is not None:
+            tracking_detections = self.troop_tracker.track_existing_troops(
+                frame, self.previous_full_frame, frame_number)
+            detections_for_tracker.extend(tracking_detections)
+
+        # Update tracker with all detections (new + tracked)
+        active_tracks = self.troop_tracker.update(
+            detections_for_tracker, frame_number)
+
+        # Store current frame for next iteration
+        self.previous_full_frame = frame.copy()
+
+        # ALWAYS draw tracking visualization to show persistent squares
+        # Get current troop positions for output
+        debug_frame = self.troop_tracker.draw_tracks(debug_frame, frame_number)
+        detected_objects = self.troop_tracker.get_active_troops()
+
+        # Return detected objects for compatibility
         placement_events = []
 
         return detected_objects, debug_frame, placement_events

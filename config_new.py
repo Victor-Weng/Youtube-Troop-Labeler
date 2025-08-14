@@ -5,7 +5,7 @@ Configuration for Clash Royale Troop Detection Tool
 # Video processing settings
 FRAME_SKIP = 60  # Process every 30th frame (1 FPS from 30 FPS video)
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 20.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 34.0  # Start analysis at this time (in seconds)
 
 # Detection settings
 # Very high threshold (very insensitive to background movement)
