@@ -6,21 +6,22 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every 20th frame (1/3 FPS from 30 FPS video)
 FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 46.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 246.0  # Start analysis at this time (in seconds)
 
-DELAY = 1 # s per frame delay
-# Detection settings
-# Very high threshold (very insensitive to background movement)
+DELAY = 2 # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
-THRESHOLD = 15 # threshold for color difference to run card detection model
+THRESHOLD = 9 # threshold for color difference to run card detection model
 COOLDOWN_FRAMES = 1 # amount of frames after a detection to wait before detecting the next change
+
+# Bias boost for MOG2 detection area
+MOG2_BIAS_BOOST = 5
 
 # Tracking settings
 MAX_TRACKING_FRAMES = 300  # How long to track an object
-TRACKING_CONFIDENCE = 0.3  # Minimum confidence to keep tracking
+TRACKING_CONFIDENCE = 0.8  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
 TRACKING_REGION = (72, 301, 608, 734)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
@@ -36,7 +37,8 @@ YOUTUBE_URLS = [
     "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale"
 
 ]
-# "https://www.youtube.com/watch?v=kYD3v_VAhBI&t=508s&ab_channel=Ryley-ClashRoyale",
+# "https://www.youtube.com/watch?v=Px0O-NFvfx8&ab_channel=Ryley-ClashRoyale",
+# "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale",
 
 # For testing with local video file, set this path and YOUTUBE_URLS to empty list
 TEST_VIDEO_PATH = None  # "test_video.mp4"
@@ -80,3 +82,4 @@ ENEMY_CARD_BAR_HEIGHT = ENEMY_HAND_COORDS[0][3]
 ENEMY_REGION = (ENEMY_CARD_BAR_X, ENEMY_CARD_BAR_Y,
                       ENEMY_CARD_BAR_WIDTH, ENEMY_CARD_BAR_HEIGHT)
 
+# Area configurations for placement bias:

@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 import time
+import config_new as config
 
 
 class TroopTrack:
@@ -19,6 +20,7 @@ class TroopTrack:
         # Motion prediction
         self.velocity = np.array([0.0, 0.0])  # dx, dy per frame
         self.predicted_position = None
+        self.card_slot_buffers = {'ally': [], 'enemy': []}
 
     def update_position(self, detection: Dict, frame_number: int, is_real_detection: bool = True):
         """Update track with new detection. Only update last_seen_frame if real detection."""
@@ -89,7 +91,7 @@ class TroopTrack:
                     return None
 
                 corners = cv2.goodFeaturesToTrack(
-                    roi, maxCorners=20, qualityLevel=0.01, minDistance=10)
+                    roi, maxCorners=15, qualityLevel=0.05, minDistance=10)
 
                 if corners is not None and len(corners) > 0:
                     # Convert corners back to full frame coordinates
@@ -203,7 +205,7 @@ class TroopTrack:
 
         return None
 
-    def is_stale(self, current_frame: int, max_missing_frames: int = 2) -> bool:
+    def is_stale(self, current_frame: int, max_missing_frames: int = 0) -> bool:
         """Check if track should be removed due to being missing too long"""
         return (current_frame - self.last_seen_frame) > max_missing_frames
 
@@ -211,7 +213,7 @@ class TroopTrack:
 class TroopTracker:
     """Lightweight tracker that associates detections across frames"""
 
-    def __init__(self, max_distance: float = 100.0, max_missing_frames: int = 2):
+    def __init__(self, max_distance: float = 100.0, max_missing_frames: int = 0):
         self.tracks: List[TroopTrack] = []
         self.next_track_id = 1
         self.max_distance = max_distance  # Max distance to associate detection with track
@@ -284,7 +286,7 @@ class TroopTracker:
             # Remove if confidence is low for last 2 positions
             if len(track.positions) >= 2:
                 last_confidences = [p.get('confidence', 1.0) for p in track.positions[-2:]]
-                if all(c < 0.2 for c in last_confidences):
+                if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
                     print(f"Removed track {track.track_id} due to low confidence (last 2 positions)")
                     continue
             active_tracks.append(track)
@@ -330,8 +332,8 @@ class TroopTracker:
                 is_real_detection = best_detection.get('method', '') != 'OPTICAL_FLOW'
                 track.update_position(best_detection, frame_number, is_real_detection=is_real_detection)
                 unmatched_detections.remove(best_detection)
-                print(
-                    f"Updated track {track.track_id} at ({best_detection['center_x']:.0f}, {best_detection['center_y']:.0f}) distance={best_distance:.1f}")
+                #print(
+                #    f"Updated track {track.track_id} at ({best_detection['center_x']:.0f}, {best_detection['center_y']:.0f}) distance={best_distance:.1f}")
 
         return unmatched_detections
 

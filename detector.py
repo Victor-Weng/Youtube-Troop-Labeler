@@ -76,7 +76,6 @@ class TroopDetector:
                 # If we found a different confident card before, it was placed
                 if prev_confident_card and prev_confident_card != curr_state[pos]:
                     changes.append(prev_confident_card)
-
         return changes if changes else None
 
     def _find_last_confident_card(self, which, position):
@@ -245,11 +244,21 @@ class TroopDetector:
             cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         objects = []
+        # Get frame height for bias logic
+        frame_height = region.shape[0] if region is not None else 0
+        # Use ally/enemy placed info from self (set externally)
+        ally_placed = getattr(self, 'ally_placed', None)
+        enemy_placed = getattr(self, 'enemy_placed', None)
         for contour in contours:
             area = cv2.contourArea(contour)
             if 100 < area < 10000:  # Very permissive size filter
                 x, y, w, h = cv2.boundingRect(contour)
                 aspect_ratio = w / h if h > 0 else 0
+                # Apply bias boost
+                if ally_placed and y > frame_height // 2:
+                    area *= config.MOG2_BIAS_BOOST
+                elif enemy_placed and y < frame_height // 2:
+                    area *= config.MOG2_BIAS_BOOST
                 if 0.1 < aspect_ratio < 10:  # Very permissive aspect ratio
                     objects.append({
                         'x': x, 'y': y, 'w': w, 'h': h,
@@ -290,70 +299,6 @@ class TroopDetector:
                     print(
                         f"Frame Diff Detection: area={area:.0f}, pos=({x},{y}), size=({w}x{h}), ratio={aspect_ratio:.2f}")
         return objects
-
-    def _find_non_background_objects(self, arena_region):
-        """Find objects that are clearly NOT background colored"""
-
-        if self.arena_background_color is None:
-            return []
-
-        # Convert arena background color to numpy array for easier comparison
-        bg_color = np.array(self.arena_background_color)
-
-        # Create a mask for non-background pixels
-        # Calculate color distance from background for each pixel
-        color_diff = np.linalg.norm(arena_region - bg_color, axis=2)
-
-        # Threshold: pixels significantly different from background
-        _, mask = cv2.threshold(color_diff.astype(
-            np.uint8), 30, 255, cv2.THRESH_BINARY)
-
-        # Clean up the mask
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)  # Remove noise
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # Fill gaps
-
-        # Find contours of non-background objects
-        contours, _ = cv2.findContours(
-            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        objects = []
-        for contour in contours:
-            area = cv2.contourArea(contour)
-
-            # Filter by size - focus on troop-sized objects
-            if area < 300 or area > 4000:
-                continue
-
-            x, y, w, h = cv2.boundingRect(contour)
-
-            # Filter by aspect ratio
-            aspect_ratio = w / h if h > 0 else 0
-            if aspect_ratio < 0.3 or aspect_ratio > 3.0:
-                continue
-
-            objects.append({
-                'x': x, 'y': y, 'w': w, 'h': h,
-                'area': area,
-                'aspect_ratio': aspect_ratio
-            })
-
-        return objects
-
-    def _is_new_troop_placement(self, prev_region):
-        """Check if this area was mostly background (indicating new placement)"""
-        if self.arena_background_color is None:
-            return True  # Can't tell, assume it's new
-
-        # Sample the previous frame region
-        avg_color = np.mean(prev_region, axis=(0, 1))
-
-        # Calculate distance from arena background color
-        color_distance = np.linalg.norm(
-            avg_color - self.arena_background_color)
-
-        # If previous area was close to background color, it's likely a new placement
-        return color_distance < 40  # Threshold for "was background"
 
     def detect_hand_cards(self, frame, which="ally"):
         print("RUNNING MODEL")
@@ -429,12 +374,11 @@ class TroopDetector:
             print(f"DETECTING CARD on dist of {color_dist}")
             return True
         else:
-            print(f"nothing detected on threshold of {color_dist}")
             return False
 
     def process_frame(self, frame: np.ndarray, frame_number: int) -> Tuple[List, np.ndarray, List]:
         """Process single frame and detect cards"""
-        
+
         # dynamic call of card detection if pixel difference noted.
         if self.should_run_card_detection(frame, which="ally"):
             ally_cards = self.detect_hand_cards(frame, "ally")

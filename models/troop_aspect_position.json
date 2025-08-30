@@ -1,0 +1,44 @@
+{
+    "troops": {
+        "Skeleton": {
+            "aspect_ratio_rank": 1,
+            "biased_positions": []
+        },
+        "Giant": {
+            "aspect_ratio_rank": 8,
+            "biased_positions": []
+        },
+        "Archer": {
+            "aspect_ratio_rank": 2,
+            "biased_positions": []
+        },
+        "P.E.K.K.A": {
+            "aspect_ratio_rank": 9,
+            "biased_positions": []
+        },
+        "Goblin": {
+            "aspect_ratio_rank": 1,
+            "biased_positions": []
+        },
+        "Wizard": {
+            "aspect_ratio_rank": 3,
+            "biased_positions": []
+        },
+        "Balloon": {
+            "aspect_ratio_rank": 7,
+            "biased_positions": []
+        },
+        "Baby Dragon": {
+            "aspect_ratio_rank": 5,
+            "biased_positions": []
+        },
+        "Minion": {
+            "aspect_ratio_rank": 1,
+            "biased_positions": []
+        },
+        "Hog Rider": {
+            "aspect_ratio_rank": 6,
+            "biased_positions": []
+        }
+    }
+}
