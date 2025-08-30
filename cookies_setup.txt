@@ -1,0 +1,1 @@
+Get cookies.txt, go to youtube.com to sign in and export cookies to a file called cookies.txtrun: yt-dlp --cookies cookies.txt "https://www.youtube.com/watch?v=faqfEekF98k"

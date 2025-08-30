@@ -27,6 +27,7 @@ venv/
 env/
 ENV/
 .venv/
+cookies.txt
 
 # IDE
 .vscode/

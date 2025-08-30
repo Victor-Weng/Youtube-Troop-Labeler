@@ -20,13 +20,15 @@ class VideoHandler:
 
     def get_youtube_stream_url(self, youtube_url: str) -> Optional[str]:
         """Get direct stream URL from YouTube"""
+        
         try:
             ydl_opts = {
                 'format': 'bestvideo[height>=720]',
                 'quiet': True,
                 'no_warnings': True,
+                'cookiesfrombrowser': ('firefox',),
+                #'cookies': os.path.join(os.path.dirname(__file__), 'cookies.txt'), # cookies to access 
             }
-
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(youtube_url, download=False)
                 return info['url']
@@ -111,7 +113,7 @@ class VideoHandler:
 
                     # Add delay for testing (adjust the value as needed)
                     import time
-                    time.sleep(2)  # 500ms delay - adjust this value
+                    time.sleep(config.DELAY)  # delay to limit call rates
 
                     # Check for key presses
                     key = cv2.waitKey(1) & 0xFF

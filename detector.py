@@ -5,6 +5,8 @@ import numpy as np
 from inference_sdk import InferenceHTTPClient
 from dotenv import load_dotenv
 from troop_tracker import TroopTracker
+import config_new as config
+import cv2
 
 # Load environment variables from .env file
 load_dotenv()
@@ -34,7 +36,7 @@ class TroopDetector:
         # Troop tracking
         self.troop_tracker = TroopTracker(
             max_distance=80.0, max_missing_frames=600)
-
+        
     def setup_card_roboflow(self):
         api_key = os.getenv('ROBOFLOW_API_KEY')
         if not api_key:
@@ -43,7 +45,7 @@ class TroopDetector:
 
         return InferenceHTTPClient(
             api_url="http://localhost:9001",
-            # api_key=api_key
+            api_key=api_key
         )
 
     def update_card_states(self, frame, ally_cards, enemy_cards):
@@ -91,7 +93,6 @@ class TroopDetector:
     def setup_arena_tracking(self, frame):
         """Initialize arena background color from the first frame"""
         import config_new as config
-        import cv2
 
         x, y, w, h = config.ARENA_SAMPLE_REGION
         arena_sample = frame[y:y+h, x:x+w]
@@ -101,9 +102,6 @@ class TroopDetector:
 
     def track_arena_changes(self, frame, card_changes, ally_placed, enemy_placed):
         """Hybrid approach using MOG2 Background Subtraction + Frame Differencing"""
-        import config_new as config
-        import cv2
-        import numpy as np
 
         # Initialize on first frame
         if self.arena_background_color is None:
@@ -237,7 +235,6 @@ class TroopDetector:
 
     def _detect_with_mog2(self, region, fg_mask):
         """MOG2 Background Subtraction Detection - Industry Standard"""
-        import cv2
 
         # Clean up mask with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -264,9 +261,6 @@ class TroopDetector:
 
     def _detect_with_frame_diff(self, current, previous):
         """Frame Differencing Detection - Reliable Backup"""
-        import cv2
-        import numpy as np
-
         # Convert to grayscale and compute difference
         curr_gray = cv2.cvtColor(current, cv2.COLOR_BGR2GRAY)
         prev_gray = cv2.cvtColor(previous, cv2.COLOR_BGR2GRAY)
@@ -299,8 +293,6 @@ class TroopDetector:
 
     def _find_non_background_objects(self, arena_region):
         """Find objects that are clearly NOT background colored"""
-        import cv2
-        import numpy as np
 
         if self.arena_background_color is None:
             return []
@@ -364,6 +356,7 @@ class TroopDetector:
         return color_distance < 40  # Threshold for "was background"
 
     def detect_hand_cards(self, frame, which="ally"):
+        print("RUNNING MODEL")
         try:
             # Capture individual cards with frame and player type
             card_data = self.actions.capture_individual_cards(
@@ -403,17 +396,59 @@ class TroopDetector:
         except Exception as e:
             print(f"Error in detect_hand_cards for {which}: {e}")
             return []
+        
+    def should_run_card_detection(self, frame: np.ndarray, which, threshold=config.THRESHOLD, cooldown_frames=config.COOLDOWN_FRAMES):
+        if not hasattr(self, 'card_detection_cooldown'):
+            self.card_detection_cooldown = {'ally': 0, 'enemy': 0}
+        
+        # skip this frame if on cooldown to avoid counting the brief background appearance
+        if self.card_detection_cooldown[which] > 0:
+            self.card_detection_cooldown[which] -= 1
+            return False
+        
+        # Define your card region, e.g., from config
+        if which == 'ally':
+            x, y, w, h = config.ALLY_REGION
+        elif which == 'enemy':
+            x, y, w, h = config.ENEMY_REGION
+        else:
+            print("invalid which passed in should_run_card_detection")
+        
+        curr_crop = frame[y:y+h, x:x+w]
+        curr_mean = np.mean(curr_crop, axis=(0, 1))
+        if self.previous_full_frame is None:
+            return True  # Always run on first frame
+        prev_crop = self.previous_full_frame[y:y+h, x:x+w]
+        prev_mean = np.mean(prev_crop,axis=(0,1))
+        #diff = cv2.absdiff(curr_crop, prev_crop) # pixel diff
+        #mean_diff = np.mean(diff)
+        color_dist = np.linalg.norm(curr_mean - prev_mean)
+
+        if color_dist > threshold:
+            self.card_detection_cooldown[which] = cooldown_frames # set cooldown frames
+            print(f"DETECTING CARD on dist of {color_dist}")
+            return True
+        else:
+            print(f"nothing detected on threshold of {color_dist}")
+            return False
 
     def process_frame(self, frame: np.ndarray, frame_number: int) -> Tuple[List, np.ndarray, List]:
         """Process single frame and detect cards"""
-        # Initialize detection storage
-        self.latest_detection = None
+        
+        # dynamic call of card detection if pixel difference noted.
+        if self.should_run_card_detection(frame, which="ally"):
+            ally_cards = self.detect_hand_cards(frame, "ally")
+        elif self.card_states:
+            ally_cards = self.card_states[-1]["ally"]
+        else:
+            ally_cards = []
 
-        # Detect ally cards
-        ally_cards = self.detect_hand_cards(frame, "ally")
-
-        # Detect enemy cards
-        enemy_cards = self.detect_hand_cards(frame, "enemy")
+        if self.should_run_card_detection(frame, which="enemy"):
+            enemy_cards = self.detect_hand_cards(frame, "enemy")
+        elif self.card_states:
+            enemy_cards = self.card_states[-1]["enemy"]
+        else:
+            enemy_cards = []
 
         # Update card states
         self.update_card_states(frame_number, ally_cards, enemy_cards)

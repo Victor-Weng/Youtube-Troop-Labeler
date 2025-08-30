@@ -20,12 +20,11 @@ class TroopTrack:
         self.velocity = np.array([0.0, 0.0])  # dx, dy per frame
         self.predicted_position = None
 
-    def update_position(self, detection: Dict, frame_number: int):
-        """Update track with new detection"""
+    def update_position(self, detection: Dict, frame_number: int, is_real_detection: bool = True):
+        """Update track with new detection. Only update last_seen_frame if real detection."""
         current_pos = np.array([detection['center_x'], detection['center_y']])
 
         if len(self.positions) >= 2:
-            # Calculate velocity based on last two positions
             prev_pos = np.array(
                 [self.positions[-1]['center_x'], self.positions[-1]['center_y']])
             frame_diff = frame_number - self.last_seen_frame
@@ -33,13 +32,11 @@ class TroopTrack:
                 self.velocity = (current_pos - prev_pos) / frame_diff
 
         self.positions.append(detection)
-        self.last_seen_frame = frame_number
+        if is_real_detection:
+            self.last_seen_frame = frame_number
 
-        # Confirm track after surviving 3+ frames
         if len(self.positions) >= 3:
             self.confirmed = True
-
-        # Keep only last 10 positions to prevent memory bloat
         if len(self.positions) > 10:
             self.positions = self.positions[-10:]
 
@@ -114,7 +111,7 @@ class TroopTrack:
 
         if self.feature_points is not None and len(self.feature_points) > 0:
             # Parameters for Lucas-Kanade optical flow
-            lk_params = dict(winSize=(15, 15), maxLevel=2,
+            lk_params = dict(winSize=(25, 25), maxLevel=4,
                              criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
             try:
@@ -206,7 +203,7 @@ class TroopTrack:
 
         return None
 
-    def is_stale(self, current_frame: int, max_missing_frames: int = 30) -> bool:
+    def is_stale(self, current_frame: int, max_missing_frames: int = 2) -> bool:
         """Check if track should be removed due to being missing too long"""
         return (current_frame - self.last_seen_frame) > max_missing_frames
 
@@ -214,7 +211,7 @@ class TroopTrack:
 class TroopTracker:
     """Lightweight tracker that associates detections across frames"""
 
-    def __init__(self, max_distance: float = 100.0, max_missing_frames: int = 30):
+    def __init__(self, max_distance: float = 100.0, max_missing_frames: int = 2):
         self.tracks: List[TroopTrack] = []
         self.next_track_id = 1
         self.max_distance = max_distance  # Max distance to associate detection with track
@@ -276,20 +273,26 @@ class TroopTracker:
             print(
                 f"Created new track {new_track.track_id} at ({detection['center_x']:.0f}, {detection['center_y']:.0f})")
 
-        # Remove stale tracks
+        # Remove stale tracks and tracks with low confidence for several frames
         active_tracks = []
         for track in self.tracks:
-            if not track.is_stale(frame_number, self.max_missing_frames):
-                active_tracks.append(track)
-            else:
+            # Remove if stale
+            if track.is_stale(frame_number, self.max_missing_frames):
                 print(
                     f"Removed stale track {track.track_id} (missing {frame_number - track.last_seen_frame} frames)")
-
+                continue
+            # Remove if confidence is low for last 2 positions
+            if len(track.positions) >= 2:
+                last_confidences = [p.get('confidence', 1.0) for p in track.positions[-2:]]
+                if all(c < 0.2 for c in last_confidences):
+                    print(f"Removed track {track.track_id} due to low confidence (last 2 positions)")
+                    continue
+            active_tracks.append(track)
         self.tracks = active_tracks
         return self.tracks
 
     def _predict_tracks(self, frame_number: int):
-        """Update predicted positions for all tracks"""
+        '''Update predicted positions for all tracks'''
         for track in self.tracks:
             pred_x, pred_y = track.predict_next_position(frame_number)
             track.predicted_position = (
@@ -323,7 +326,9 @@ class TroopTracker:
 
             # Associate best match
             if best_detection:
-                track.update_position(best_detection, frame_number)
+                # Only update last_seen_frame if this is a real detection (not optical flow)
+                is_real_detection = best_detection.get('method', '') != 'OPTICAL_FLOW'
+                track.update_position(best_detection, frame_number, is_real_detection=is_real_detection)
                 unmatched_detections.remove(best_detection)
                 print(
                     f"Updated track {track.track_id} at ({best_detection['center_x']:.0f}, {best_detection['center_y']:.0f}) distance={best_distance:.1f}")

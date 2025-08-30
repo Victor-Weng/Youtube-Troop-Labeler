@@ -23,24 +23,6 @@ class Actions:
         self.WIDTH = self.BOTTOM_RIGHT_X - self.TOP_LEFT_X
         self.HEIGHT = self.BOTTOM_RIGHT_Y - self.TOP_LEFT_Y
 
-        ALLY_COORDS = config.ALLY_HAND_COORDS
-        ENEMY_COORDS = config.ENEMY_HAND_COORDS
-
-        # Add card bar coordinates for Ally Hand
-        self.ALLY_CARD_BAR_X = ALLY_COORDS[0][0]
-        self.ALLY_CARD_BAR_Y = ALLY_COORDS[0][1]
-        # Fix: Calculate proper width to include all 4 cards
-        self.ALLY_CARD_BAR_WIDTH = (
-            ALLY_COORDS[3][0] + ALLY_COORDS[3][2]) - ALLY_COORDS[0][0]
-        self.ALLY_CARD_BAR_HEIGHT = ALLY_COORDS[0][3]
-        # Add card bar coordinates for Enemy Hand
-        self.ENEMY_CARD_BAR_X = ENEMY_COORDS[0][0]
-        self.ENEMY_CARD_BAR_Y = ENEMY_COORDS[0][1]
-        # Fix: Calculate proper width to include all 4 cards
-        self.ENEMY_CARD_BAR_WIDTH = (
-            ENEMY_COORDS[3][0] + ENEMY_COORDS[3][2]) - ENEMY_COORDS[0][0]
-        self.ENEMY_CARD_BAR_HEIGHT = ENEMY_COORDS[0][3]
-
         # Card position to key mapping
         self.card_keys = {
             0: '1',  # Changed from 1 to 0
@@ -61,11 +43,9 @@ class Actions:
     def capture_card_area(self, save_path, player_type="ally"):
         """Capture screenshot of card area"""
         if player_type.lower() == "ally":
-            region = (self.ALLY_CARD_BAR_X, self.ALLY_CARD_BAR_Y,
-                      self.ALLY_CARD_BAR_WIDTH, self.ALLY_CARD_BAR_HEIGHT)
+            region = config.ALLY_REGION
         else:  # enemy
-            region = (self.ENEMY_CARD_BAR_X, self.ENEMY_CARD_BAR_Y,
-                      self.ENEMY_CARD_BAR_WIDTH, self.ENEMY_CARD_BAR_HEIGHT)
+            region = config.ENEMY_REGION
 
         screenshot = pyautogui.screenshot(region=region)
         screenshot.save(save_path)
@@ -83,12 +63,10 @@ class Actions:
         # Get coordinates and region based on player type
         if player_type == "ally":
             coords = config.ALLY_HAND_COORDS
-            region = (self.ALLY_CARD_BAR_X, self.ALLY_CARD_BAR_Y,
-                      self.ALLY_CARD_BAR_WIDTH, self.ALLY_CARD_BAR_HEIGHT)
+            region = config.ALLY_REGION
         else:  # enemy
             coords = config.ENEMY_HAND_COORDS
-            region = (self.ENEMY_CARD_BAR_X, self.ENEMY_CARD_BAR_Y,
-                      self.ENEMY_CARD_BAR_WIDTH, self.ENEMY_CARD_BAR_HEIGHT)
+            region = config.ENEMY_REGION
 
         if frame is not None:
             import cv2
