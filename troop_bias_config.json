@@ -1,0 +1,541 @@
+{
+    "troops": {
+        "archer queen": {
+            "size_rank": 3,
+            "aspect_ratio": 1.6,
+            "biased_positions": []
+        },
+        "archers": {
+            "size_rank": 2,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "arrows": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "baby dragon": {
+            "size_rank": 4,
+            "aspect_ratio": 0.9,
+            "biased_positions": []
+        },
+        "balloon": {
+            "size_rank": 8,
+            "aspect_ratio": 0.8,
+            "biased_positions": ["CORNER", "BRIDGE"]
+        },
+        "bandit": {
+            "size_rank": 3,
+            "aspect_ratio": 1.2,
+            "biased_positions": ["BRIDGE", "BUILDING"]
+        },
+        "barbarian barrel": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["BRIDGE"]
+        },
+        "barbarian hut": {
+            "size_rank": 6,
+            "aspect_ratio": 1.2,
+            "biased_positions": ["BUILDING"]
+        },
+        "barbarians": {
+            "size_rank": 3,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "bats": { "size_rank": 1, "aspect_ratio": 1.0, "biased_positions": [] },
+        "battle healer": {
+            "size_rank": 4,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "battle ram": {
+            "size_rank": 4,
+            "aspect_ratio": 1.4,
+            "biased_positions": ["BRIDGE"]
+        },
+        "bomb tower": {
+            "size_rank": 5,
+            "aspect_ratio": 1.4,
+            "biased_positions": ["BUILDING"]
+        },
+        "bomber": {
+            "size_rank": 2,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "bowler": {
+            "size_rank": 6,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "cannon": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["BUILDING"]
+        },
+        "cannon cart": {
+            "size_rank": 5,
+            "aspect_ratio": 0.9,
+            "biased_positions": []
+        },
+        "clone": {
+            "size_rank": 2,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "dark prince": {
+            "size_rank": 4,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "dart goblin": {
+            "size_rank": 2,
+            "aspect_ratio": 1.5,
+            "biased_positions": ["BRIDGE"]
+        },
+        "earthquake": {
+            "size_rank": 6,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["BUILDING"]
+        },
+        "electro dragon": {
+            "size_rank": 5,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "electro giant": {
+            "size_rank": 10,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "electro spirit": {
+            "size_rank": 1,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "electro wizard": {
+            "size_rank": 3,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "elite barbarians": {
+            "size_rank": 5,
+            "aspect_ratio": 1.2,
+            "biased_positions": ["BRIDGE"]
+        },
+        "elixir collector": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["CORNER"]
+        },
+        "elixir golem": {
+            "size_rank": 7,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["KING_TOWER", "BRIDGE"]
+        },
+        "executioner": {
+            "size_rank": 5,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "fire spirit": {
+            "size_rank": 1,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "fireball": {
+            "size_rank": 5,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "firecracker": {
+            "size_rank": 2,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "fisherman": {
+            "size_rank": 3,
+            "aspect_ratio": 1.2,
+            "biased_positions": ["BUILDING"]
+        },
+        "flying machine": {
+            "size_rank": 3,
+            "aspect_ratio": 0.8,
+            "biased_positions": ["BUILDING"]
+        },
+        "freeze": {
+            "size_rank": 6,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "furnace": {
+            "size_rank": 5,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["BUILDING"]
+        },
+        "giant": {
+            "size_rank": 9,
+            "aspect_ratio": 0.9,
+            "biased_positions": ["BRIDGE", "KING_TOWER"]
+        },
+        "giant skeleton": {
+            "size_rank": 8,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["BRIDGE", "KING_TOWER"]
+        },
+        "giant snowball": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "goblin barrel": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["TOWER"]
+        },
+        "goblin cage": {
+            "size_rank": 5,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["BUILDING"]
+        },
+        "goblin drill": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["TOWER"]
+        },
+        "goblin gang": {
+            "size_rank": 2,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "goblin giant": {
+            "size_rank": 9,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["KING_TOWER", "BRIDGE"]
+        },
+        "goblin hut": {
+            "size_rank": 5,
+            "aspect_ratio": 1.1,
+            "biased_positions": ["BUILDING"]
+        },
+        "goblins": {
+            "size_rank": 2,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "golden knight": {
+            "size_rank": 4,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "golem": {
+            "size_rank": 10,
+            "aspect_ratio": 0.85,
+            "biased_positions": []
+        },
+        "graveyard": {
+            "size_rank": 7,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "guards": {
+            "size_rank": 2,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "heal spirit": {
+            "size_rank": 1,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "hog rider": {
+            "size_rank": 4,
+            "aspect_ratio": 1.2,
+            "biased_positions": ["BRIDGE"]
+        },
+        "hunter": {
+            "size_rank": 4,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "ice golem": {
+            "size_rank": 4,
+            "aspect_ratio": 0.95,
+            "biased_positions": []
+        },
+        "ice spirit": {
+            "size_rank": 1,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "ice wizard": {
+            "size_rank": 3,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "inferno dragon": {
+            "size_rank": 4,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "inferno tower": {
+            "size_rank": 7,
+            "aspect_ratio": 1.8,
+            "biased_positions": ["BUILDING"]
+        },
+        "knight": {
+            "size_rank": 3,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "lava hound": {
+            "size_rank": 8,
+            "aspect_ratio": 0.9,
+            "biased_positions": ["CORNER"]
+        },
+        "lightning": {
+            "size_rank": 7,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "little prince": {
+            "size_rank": 3,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "lumberjack": {
+            "size_rank": 3,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "magic archer": {
+            "size_rank": 3,
+            "aspect_ratio": 1.6,
+            "biased_positions": []
+        },
+        "mega knight": {
+            "size_rank": 8,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "mega minion": {
+            "size_rank": 2,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "mighty miner": {
+            "size_rank": 4,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "miner": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["TOWER"]
+        },
+        "mini pekka": {
+            "size_rank": 4,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "minion horde": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "minions": {
+            "size_rank": 2,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "monk": { "size_rank": 4, "aspect_ratio": 1.3, "biased_positions": [] },
+        "mortar": {
+            "size_rank": 6,
+            "aspect_ratio": 0.7,
+            "biased_positions": ["BRIDGE"]
+        },
+        "mother witch": {
+            "size_rank": 3,
+            "aspect_ratio": 1.3,
+            "biased_positions": []
+        },
+        "musketeer": {
+            "size_rank": 3,
+            "aspect_ratio": 1.5,
+            "biased_positions": []
+        },
+        "night witch": {
+            "size_rank": 3,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "pekka": {
+            "size_rank": 7,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "phoenix": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "poison": {
+            "size_rank": 7,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "prince": {
+            "size_rank": 5,
+            "aspect_ratio": 1.5,
+            "biased_positions": []
+        },
+        "princess": {
+            "size_rank": 2,
+            "aspect_ratio": 1.6,
+            "biased_positions": []
+        },
+        "rage": {
+            "size_rank": 5,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "ram rider": {
+            "size_rank": 5,
+            "aspect_ratio": 1.4,
+            "biased_positions": ["BRIDGE"]
+        },
+        "rascals": {
+            "size_rank": 4,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "rocket": {
+            "size_rank": 7,
+            "aspect_ratio": 1.0,
+            "biased_positions": ["TOWER"]
+        },
+        "royal delivery": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "royal ghost": {
+            "size_rank": 4,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "royal hogs": {
+            "size_rank": 4,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "royal recruits": {
+            "size_rank": 4,
+            "aspect_ratio": 0.2,
+            "biased_positions": []
+        },
+        "royale giant": {
+            "size_rank": 9,
+            "aspect_ratio": 0.95,
+            "biased_positions": ["BRIDGE"]
+        },
+        "skeleton army": {
+            "size_rank": 2,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "skeleton barrel": {
+            "size_rank": 3,
+            "aspect_ratio": 0.9,
+            "biased_positions": []
+        },
+        "skeleton dragons": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "skeleton king": {
+            "size_rank": 5,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "skeletons": {
+            "size_rank": 1,
+            "aspect_ratio": 1.1,
+            "biased_positions": []
+        },
+        "sparky": {
+            "size_rank": 7,
+            "aspect_ratio": 0.9,
+            "biased_positions": ["KING_TOWER"]
+        },
+        "spear goblins": {
+            "size_rank": 2,
+            "aspect_ratio": 1.2,
+            "biased_positions": []
+        },
+        "tesla": {
+            "size_rank": 5,
+            "aspect_ratio": 1.6,
+            "biased_positions": ["BUILDING"]
+        },
+        "the log": {
+            "size_rank": 5,
+            "aspect_ratio": 0.3,
+            "biased_positions": ["BRIDGE"]
+        },
+        "three musketeers": {
+            "size_rank": 5,
+            "aspect_ratio": 1.5,
+            "biased_positions": []
+        },
+        "tombstone": {
+            "size_rank": 4,
+            "aspect_ratio": 1.5,
+            "biased_positions": ["BUILDING"]
+        },
+        "tornado": {
+            "size_rank": 6,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "valkyrie": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "wall breakers": {
+            "size_rank": 2,
+            "aspect_ratio": 0.5,
+            "biased_positions": []
+        },
+        "witch": {
+            "size_rank": 4,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "wizard": {
+            "size_rank": 3,
+            "aspect_ratio": 1.4,
+            "biased_positions": []
+        },
+        "x-bow": {
+            "size_rank": 6,
+            "aspect_ratio": 1,
+            "biased_positions": ["BRIDGE"]
+        },
+        "zap": {
+            "size_rank": 4,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        },
+        "zappies": {
+            "size_rank": 3,
+            "aspect_ratio": 1.0,
+            "biased_positions": []
+        }
+    }
+}

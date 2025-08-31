@@ -13,6 +13,29 @@ load_dotenv()
 
 
 class TroopDetector:
+    def score_detection(self, obj, troop_info, player, frame_height, pc, config):
+        area = obj['area']
+        w, h = obj['w'], obj['h']
+        x, y = obj['x'], obj['y']
+        aspect_ratio = h / w if w > 0 else 0
+        size_score = 1.0 - abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
+        ar_score = 1.0 - abs(aspect_ratio - troop_info.get('aspect_ratio', 1.0))/2.0
+        pos_score = 0.5
+        for pos in troop_info.get('biased_positions', []):
+            if isinstance(pos, str) and hasattr(pc, pos.upper()):
+                regions = getattr(pc, pos.upper())[player]
+                for region in regions:
+                    px, py, pw, ph = region
+                    if (x >= px-40 and x <= px+pw+40 and y >= py-40 and y <= py+ph+40):
+                        pos_score = 1.0
+                        break
+                if pos_score == 1.0:
+                    break
+        if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
+            if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
+                size_score *= config.MOG2_BIAS_BOOST
+        score = 0.7*size_score + 0.3*ar_score + 0.6*pos_score
+        return score
     """Simplified detector for card detection only"""
 
     def __init__(self):
@@ -100,6 +123,82 @@ class TroopDetector:
         print(f"Arena background color set to: {self.arena_background_color}")
 
     def track_arena_changes(self, frame, card_changes, ally_placed, enemy_placed):
+        # Always initialize debug_frame and tracking region at the top
+        import placement_config as pc
+        track_x, track_y, track_w, track_h = config.TRACKING_REGION
+        debug_frame = frame.copy()
+        tower_wait_frames = 3
+        if not hasattr(self, 'tower_wait_counter'):
+            self.tower_wait_counter = 0
+        tower_search_active = False
+
+        placed_troop = None
+        player = "Unknown"
+        for card_name in card_changes:
+            if card_name != "Unknown":
+                placed_troop = card_name
+                if ally_placed and card_name in ally_placed:
+                    player = "ally"
+                elif enemy_placed and card_name in enemy_placed:
+                    player = "enemy"
+                else:
+                    player = "ally" if track_y > frame.shape[0] // 2 else "enemy"
+                break
+
+        tower_mode = False
+        tower_regions = []
+        if placed_troop:
+            import json
+            with open('troop_bias_config.json', 'r') as f:
+                troop_config = json.load(f)["troops"]
+            troop_info = troop_config.get(placed_troop, None)
+            # Check for TOWER keyword in biased_positions
+            for pos in troop_info.get('biased_positions', []):
+                if isinstance(pos, str) and pos.upper() == "TOWER":
+                    tower_mode = True
+                    print("Tower troop/spell on")
+                    # Get all tower regions for this player
+                    tower_regions = getattr(pc, "TOWER")[player]
+                    break
+
+        best_object = None
+        best_score = -float('inf')
+        # If tower_mode, wait a few frames and search only in tower regions
+        if tower_mode:
+            if self.tower_wait_counter < tower_wait_frames:
+                self.tower_wait_counter += 1
+                self.latest_detection = None
+                self.previous_arena_frame = frame.copy()
+                return debug_frame
+            else:
+                self.tower_wait_counter = 0
+                # Search in all tower regions
+                for region in tower_regions:
+                    tower_x, tower_y, tower_w, tower_h = region
+                    for obj in mog2_objects:
+                        x, y, w, h = obj['x'], obj['y'], obj['w'], obj['h']
+                        if (x >= tower_x-40 and x <= tower_x+tower_w+40 and y >= tower_y-40 and y <= tower_y+tower_h+40):
+                            best_object = obj
+                            break
+                    if best_object:
+                        break
+                if best_object:
+                    abs_x = track_x + best_object['x']
+                    abs_y = track_y + best_object['y']
+                    w, h = best_object['w'], best_object['h']
+                    label = f"{player}_{placed_troop}"
+                    best_object['card_type'] = placed_troop
+                    best_object['player'] = player
+                    best_object['x'] = abs_x
+                    best_object['y'] = abs_y
+                    cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
+                    cv2.putText(debug_frame, label, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+                    print(f"FINAL TOWER DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
+                    self.latest_detection = best_object
+                    self.previous_arena_frame = frame.copy()
+                    return debug_frame
+                # If not found, fall back to best score below
         """Hybrid approach using MOG2 Background Subtraction + Frame Differencing"""
 
         # Initialize on first frame
@@ -156,79 +255,61 @@ class TroopDetector:
 
         # METHOD 1: MOG2 Background Subtraction (Industry Standard)
         mog2_objects = self._detect_with_mog2(current_region, fg_mask)
-
         # METHOD 2: Frame Differencing (Reliable Backup)
-        diff_objects = self._detect_with_frame_diff(
-            current_region, prev_region)
-
-        # Combine both methods
+        diff_objects = self._detect_with_frame_diff(current_region, prev_region)
         all_objects = mog2_objects + diff_objects
-
-        print(
-            f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
+        print(f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
 
         # Draw ALL detected objects for debugging (very permissive)
+        frame_height = frame.shape[0]
         for obj in all_objects:
-            abs_x = track_x + obj['x']
-            abs_y = track_y + obj['y']
-            w, h = obj['w'], obj['h']
+            if obj['method'] == 'MOG2':
+                abs_x = track_x + obj['x']
+                abs_y = track_y + obj['y']
+                w, h = obj['w'], obj['h']
+                score = None
+                if placed_troop:
+                    import json
+                    with open('troop_bias_config.json', 'r') as f:
+                        troop_config = json.load(f)["troops"]
+                    troop_info = troop_config.get(placed_troop, None)
+                    if troop_info:
+                        score = self.score_detection(obj, troop_info, player, frame_height, pc, config)
+                print(f"MOG2 Detection: area={obj['area']:.0f}, pos=({abs_x},{abs_y}), size=({w}x{h}), ratio={h/w if w > 0 else 0:.2f}, score={score if score is not None else 'N/A'}")
+                cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 255, 255), 1)
+                cv2.putText(debug_frame, f"MOG2:{obj['area']:.0f}", (abs_x, abs_y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
 
-            # Yellow rectangles for all detections
-            cv2.rectangle(debug_frame, (abs_x, abs_y),
-                          (abs_x + w, abs_y + h), (0, 255, 255), 1)
-            cv2.putText(debug_frame, f"{obj['method']}:{obj['area']:.0f}",
-                        (abs_x, abs_y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
+        # Select best object using score_detection
+        best_object = None
+        best_score = -float('inf')
+        if placed_troop:
+            import json
+            with open('troop_bias_config.json', 'r') as f:
+                troop_config = json.load(f)["troops"]
+            troop_info = troop_config.get(placed_troop, None)
+            if troop_info:
+                for obj in mog2_objects:
+                    score = self.score_detection(obj, troop_info, player, frame_height, pc, config)
+                    if score > best_score:
+                        best_score = score
+                        best_object = obj
 
-        # Select best detection for final output
-        if all_objects:
-            best_object = max(all_objects, key=lambda x: x['area'])
-
+        if best_object:
             abs_x = track_x + best_object['x']
             abs_y = track_y + best_object['y']
             w, h = best_object['w'], best_object['h']
-
-            # Determine card type and player
-            card_type = "Unknown"
-            player = "Unknown"
-            for card_name in card_changes:
-                if card_name != "Unknown":
-                    if ally_placed and card_name in ally_placed:
-                        player = "ally"
-                    elif enemy_placed and card_name in enemy_placed:
-                        player = "enemy"
-                    else:
-                        player = "ally" if abs_y > frame.shape[0] // 2 else "enemy"
-
-                    card_type = card_name
-                    break
-
-            label = f"{player}_{card_type}"
-
-            # Add card type and player info to detection for tracker
-            best_object['card_type'] = card_type
+            label = f"{player}_{placed_troop}"
+            best_object['card_type'] = placed_troop
             best_object['player'] = player
-
-            # Convert to absolute coordinates for tracker
             best_object['x'] = abs_x
             best_object['y'] = abs_y
-
-            # Draw final detection (thick red rectangle)
-            cv2.rectangle(debug_frame, (abs_x, abs_y),
-                          (abs_x + w, abs_y + h), (0, 0, 255), 3)
-            cv2.putText(debug_frame, label, (abs_x, abs_y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}",
-                        (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-
-            print(
-                f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
-
-            # Store detection for return
+            cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
+            cv2.putText(debug_frame, label, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+            print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
             self.latest_detection = best_object
         else:
             self.latest_detection = None
-
-        # Update for next frame
         self.previous_arena_frame = frame.copy()
         return debug_frame
 
@@ -244,28 +325,16 @@ class TroopDetector:
             cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         objects = []
-        # Get frame height for bias logic
-        frame_height = region.shape[0] if region is not None else 0
-        # Use ally/enemy placed info from self (set externally)
-        ally_placed = getattr(self, 'ally_placed', None)
-        enemy_placed = getattr(self, 'enemy_placed', None)
         for contour in contours:
             area = cv2.contourArea(contour)
-            if 100 < area < 10000:  # Very permissive size filter
+            if 100 < area < 10000:
                 x, y, w, h = cv2.boundingRect(contour)
-                aspect_ratio = w / h if h > 0 else 0
-                # Apply bias boost
-                if ally_placed and y > frame_height // 2:
-                    area *= config.MOG2_BIAS_BOOST
-                elif enemy_placed and y < frame_height // 2:
-                    area *= config.MOG2_BIAS_BOOST
-                if 0.1 < aspect_ratio < 10:  # Very permissive aspect ratio
+                aspect_ratio = h / w if w > 0 else 0
+                if 0.1 < aspect_ratio < 10:
                     objects.append({
                         'x': x, 'y': y, 'w': w, 'h': h,
                         'area': area, 'method': 'MOG2'
                     })
-                    print(
-                        f"MOG2 Detection: area={area:.0f}, pos=({x},{y}), size=({w}x{h}), ratio={aspect_ratio:.2f}")
         return objects
 
     def _detect_with_frame_diff(self, current, previous):

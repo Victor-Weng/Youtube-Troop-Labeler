@@ -17,13 +17,13 @@ THRESHOLD = 9 # threshold for color difference to run card detection model
 COOLDOWN_FRAMES = 1 # amount of frames after a detection to wait before detecting the next change
 
 # Bias boost for MOG2 detection area
-MOG2_BIAS_BOOST = 5
+MOG2_BIAS_BOOST = 2
 
 # Tracking settings
 MAX_TRACKING_FRAMES = 300  # How long to track an object
 TRACKING_CONFIDENCE = 0.8  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
-TRACKING_REGION = (72, 301, 608, 734)  # (x, y, w, h) Arena region for tracking
+TRACKING_REGION = (72, 301, 611, 767)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
 
 # Output settings
@@ -82,4 +82,3 @@ ENEMY_CARD_BAR_HEIGHT = ENEMY_HAND_COORDS[0][3]
 ENEMY_REGION = (ENEMY_CARD_BAR_X, ENEMY_CARD_BAR_Y,
                       ENEMY_CARD_BAR_WIDTH, ENEMY_CARD_BAR_HEIGHT)
 
-# Area configurations for placement bias:
