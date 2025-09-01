@@ -3,12 +3,13 @@ Configuration for Clash Royale Troop Detection Tool
 """
 
 # Video processing settings
-FRAME_SKIP = 20  # Process every 20th frame (1/3 FPS from 30 FPS video)
-FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
+FRAME_SKIP = 20  # Process every xth frame (60 fps video)
+# FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
 START_TIME_SECONDS = 246.0  # Start analysis at this time (in seconds)
+FPS = 60
 
-DELAY = 2 # s per frame delay
+DELAY = 0.5 # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
@@ -16,8 +17,15 @@ MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
 THRESHOLD = 9 # threshold for color difference to run card detection model
 COOLDOWN_FRAMES = 1 # amount of frames after a detection to wait before detecting the next change
 
-# Bias boost for MOG2 detection area
-MOG2_BIAS_BOOST = 2
+
+# MOG2 settings
+MOG2_BIAS_BOOST = 2 # boost troops on our side by 2x
+HISTORY = 20
+VAR_THRESHOLD = 15
+LEARNING_RATE = 0.1 # how fast changes are adapted into model background
+
+# Debug setting: Enable/disable MOG2 detection on every frame
+MOG2_DEBUG_ALWAYS_RUN = True
 
 # Tracking settings
 MAX_TRACKING_FRAMES = 300  # How long to track an object
