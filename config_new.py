@@ -28,8 +28,8 @@ LEARNING_RATE = 0.1 # how fast changes are adapted into model background
 MOG2_DEBUG_ALWAYS_RUN = True
 
 # Tracking settings
-MAX_TRACKING_FRAMES = 300  # How long to track an object
-TRACKING_CONFIDENCE = 0.8  # Minimum confidence to keep tracking
+MAX_TRACKING_FRAMES = 60  # How long to track an object
+TRACKING_CONFIDENCE = 0.9  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
 TRACKING_REGION = (72, 301, 611, 767)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently

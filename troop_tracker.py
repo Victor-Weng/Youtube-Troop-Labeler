@@ -113,7 +113,7 @@ class TroopTrack:
 
         if self.feature_points is not None and len(self.feature_points) > 0:
             # Parameters for Lucas-Kanade optical flow
-            lk_params = dict(winSize=(25, 25), maxLevel=4,
+            lk_params = dict(winSize=(25, 25), maxLevel=3,
                              criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
             try:

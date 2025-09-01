@@ -18,7 +18,7 @@ class TroopDetector:
         w, h = obj['w'], obj['h']
         x, y = obj['x'], obj['y']
         aspect_ratio = h / w if w > 0 else 0
-        size_score = 1.0 - abs(area/1000.0 - troop_info.get('size_rank', 1))/5.0
+        size_score = 1.0 - abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
         ar_score = 1.0 - abs(aspect_ratio - troop_info.get('aspect_ratio', 1.0))/2.0
         pos_score = 0.5
         for pos in troop_info.get('biased_positions', []):
@@ -34,7 +34,7 @@ class TroopDetector:
         if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
             if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
                 size_score *= config.MOG2_BIAS_BOOST
-        score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score
+        score = 0.7*size_score + 0.7*ar_score + 0.8*pos_score
         return score
     """Simplified detector for card detection only"""
 

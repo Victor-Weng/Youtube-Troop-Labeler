@@ -91,7 +91,7 @@
             "delay": 0.1
         },
         "cannon": {
-            "size_rank": 5,
+            "size_rank": 4,
             "aspect_ratio": 0.8,
             "biased_positions": ["BUILDING"],
             "delay": 0.1
@@ -238,7 +238,7 @@
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": ["TOWER"],
-            "delay": 3
+            "delay": 3.3
         },
         "goblin cage": {
             "size_rank": 5,
