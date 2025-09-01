@@ -123,92 +123,19 @@ class TroopDetector:
         print(f"Arena background color set to: {self.arena_background_color}")
 
     def track_arena_changes(self, frame, card_changes, ally_placed, enemy_placed):
-        # Always initialize debug_frame and tracking region at the top
+    # ...existing code...
+        # ...existing code...
         import placement_config as pc
         track_x, track_y, track_w, track_h = config.TRACKING_REGION
         debug_frame = frame.copy()
-        tower_wait_frames = 3
-        if not hasattr(self, 'tower_wait_counter'):
-            self.tower_wait_counter = 0
-        tower_search_active = False
-
-        placed_troop = None
-        player = "Unknown"
-        for card_name in card_changes:
-            if card_name != "Unknown":
-                placed_troop = card_name
-                if ally_placed and card_name in ally_placed:
-                    player = "ally"
-                elif enemy_placed and card_name in enemy_placed:
-                    player = "enemy"
-                else:
-                    player = "ally" if track_y > frame.shape[0] // 2 else "enemy"
-                break
-
-        tower_mode = False
-        tower_regions = []
-        if placed_troop:
-            import json
-            with open('troop_bias_config.json', 'r') as f:
-                troop_config = json.load(f)["troops"]
-            troop_info = troop_config.get(placed_troop, None)
-            # Check for TOWER keyword in biased_positions
-            for pos in troop_info.get('biased_positions', []):
-                if isinstance(pos, str) and pos.upper() == "TOWER":
-                    tower_mode = True
-                    print("Tower troop/spell on")
-                    # Get all tower regions for this player
-                    tower_regions = getattr(pc, "TOWER")[player]
-                    break
-
-        best_object = None
-        best_score = -float('inf')
-        # If tower_mode, wait a few frames and search only in tower regions
-        if tower_mode:
-            if self.tower_wait_counter < tower_wait_frames:
-                self.tower_wait_counter += 1
-                self.latest_detection = None
-                self.previous_arena_frame = frame.copy()
-                return debug_frame
-            else:
-                self.tower_wait_counter = 0
-                # Search in all tower regions
-                for region in tower_regions:
-                    tower_x, tower_y, tower_w, tower_h = region
-                    for obj in mog2_objects:
-                        x, y, w, h = obj['x'], obj['y'], obj['w'], obj['h']
-                        if (x >= tower_x-40 and x <= tower_x+tower_w+40 and y >= tower_y-40 and y <= tower_y+tower_h+40):
-                            best_object = obj
-                            break
-                    if best_object:
-                        break
-                if best_object:
-                    abs_x = track_x + best_object['x']
-                    abs_y = track_y + best_object['y']
-                    w, h = best_object['w'], best_object['h']
-                    label = f"{player}_{placed_troop}"
-                    best_object['card_type'] = placed_troop
-                    best_object['player'] = player
-                    best_object['x'] = abs_x
-                    best_object['y'] = abs_y
-                    cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
-                    cv2.putText(debug_frame, label, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                    print(f"FINAL TOWER DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
-                    self.latest_detection = best_object
-                    self.previous_arena_frame = frame.copy()
-                    return debug_frame
-                # If not found, fall back to best score below
         """Hybrid approach using MOG2 Background Subtraction + Frame Differencing"""
 
         # Initialize on first frame
         if self.arena_background_color is None:
             self.setup_arena_tracking(frame)
             self.previous_arena_frame = frame.copy()
-            # Initialize MOG2 background subtractor - industry standard
             self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
                 detectShadows=False, varThreshold=16, history=20)
-
             debug_frame = frame.copy()
             track_x, track_y, track_w, track_h = config.TRACKING_REGION
             cv2.rectangle(debug_frame, (track_x, track_y),
@@ -220,11 +147,7 @@ class TroopDetector:
         track_x, track_y, track_w, track_h = config.TRACKING_REGION
         debug_frame = frame.copy()
 
-        # Extract tracking region
-        current_region = frame[track_y:track_y +
-                               track_h, track_x:track_x + track_w]
-
-        # Always show tracking region
+        current_region = frame[track_y:track_y + track_h, track_x:track_x + track_w]
         cv2.rectangle(debug_frame, (track_x, track_y),
                       (track_x + track_w, track_y + track_h), (0, 255, 0), 2)
         cv2.putText(debug_frame, "Hybrid Detection: MOG2 + Frame Diff", (track_x, track_y - 10),
@@ -234,14 +157,10 @@ class TroopDetector:
             cv2.putText(debug_frame, f"Cards: {card_changes}", (track_x, track_y - 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
 
-        # Always update background model
         fg_mask = self.bg_subtractor.apply(current_region)
-
-        # Store current region for tracking
         self.current_tracking_region = current_region
         self.tracking_offset = (track_x, track_y)
 
-        # Only detect NEW objects when cards are placed
         if not card_changes:
             self.latest_detection = None
             self.previous_arena_frame = frame.copy()
@@ -249,67 +168,51 @@ class TroopDetector:
 
         print(f"DEBUG: Detecting objects for cards: {card_changes}")
 
-        # Get previous region for frame differencing
-        prev_region = self.previous_arena_frame[track_y:track_y +
-                                                track_h, track_x:track_x + track_w]
-
-        # METHOD 1: MOG2 Background Subtraction (Industry Standard)
+        prev_region = self.previous_arena_frame[track_y:track_y + track_h, track_x:track_x + track_w]
         mog2_objects = self._detect_with_mog2(current_region, fg_mask)
-        # METHOD 2: Frame Differencing (Reliable Backup)
+        # Draw small yellow boxes for all MOG2 detections (debugging)
+        for obj in mog2_objects:
+            abs_x = track_x + obj['x']
+            abs_y = track_y + obj['y']
+            w, h = obj['w'], obj['h']
+            cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 255, 255), 1)
+            cv2.putText(debug_frame, 'MOG2', (abs_x, abs_y - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
         diff_objects = self._detect_with_frame_diff(current_region, prev_region)
         all_objects = mog2_objects + diff_objects
         print(f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
 
-        # Draw ALL detected objects for debugging (very permissive)
         frame_height = frame.shape[0]
-        for obj in all_objects:
-            if obj['method'] == 'MOG2':
-                abs_x = track_x + obj['x']
-                abs_y = track_y + obj['y']
-                w, h = obj['w'], obj['h']
-                score = None
-                if placed_troop:
-                    import json
-                    with open('troop_bias_config.json', 'r') as f:
-                        troop_config = json.load(f)["troops"]
-                    troop_info = troop_config.get(placed_troop, None)
-                    if troop_info:
-                        score = self.score_detection(obj, troop_info, player, frame_height, pc, config)
-                print(f"MOG2 Detection: area={obj['area']:.0f}, pos=({abs_x},{abs_y}), size=({w}x{h}), ratio={h/w if w > 0 else 0:.2f}, score={score if score is not None else 'N/A'}")
-                cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 255, 255), 1)
-                cv2.putText(debug_frame, f"MOG2:{obj['area']:.0f}", (abs_x, abs_y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
-
-        # Select best object using score_detection
-        best_object = None
-        best_score = -float('inf')
-        if placed_troop:
+        # Loop over all troops in card_changes
+        self.latest_detection = None
+        for entry in card_changes:
+            troop = entry['troop']
+            player = entry['player']
             import json
             with open('troop_bias_config.json', 'r') as f:
                 troop_config = json.load(f)["troops"]
-            troop_info = troop_config.get(placed_troop, None)
+            troop_info = troop_config.get(troop, None)
+            best_object = None
+            best_score = -float('inf')
             if troop_info:
                 for obj in mog2_objects:
                     score = self.score_detection(obj, troop_info, player, frame_height, pc, config)
                     if score > best_score:
                         best_score = score
                         best_object = obj
-
-        if best_object:
-            abs_x = track_x + best_object['x']
-            abs_y = track_y + best_object['y']
-            w, h = best_object['w'], best_object['h']
-            label = f"{player}_{placed_troop}"
-            best_object['card_type'] = placed_troop
-            best_object['player'] = player
-            best_object['x'] = abs_x
-            best_object['y'] = abs_y
-            cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
-            cv2.putText(debug_frame, label, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-            print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
-            self.latest_detection = best_object
-        else:
-            self.latest_detection = None
+            if best_object:
+                abs_x = track_x + best_object['x']
+                abs_y = track_y + best_object['y']
+                w, h = best_object['w'], best_object['h']
+                label = f"{player}_{troop}"
+                best_object['card_type'] = troop
+                best_object['player'] = player
+                best_object['x'] = abs_x
+                best_object['y'] = abs_y
+                cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
+                cv2.putText(debug_frame, label, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+                print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
+                self.latest_detection = best_object
         self.previous_arena_frame = frame.copy()
         return debug_frame
 
@@ -365,12 +268,12 @@ class TroopDetector:
                         'x': x, 'y': y, 'w': w, 'h': h,
                         'area': area, 'method': 'DIFF'
                     })
-                    print(
-                        f"Frame Diff Detection: area={area:.0f}, pos=({x},{y}), size=({w}x{h}), ratio={aspect_ratio:.2f}")
+                    #print(
+                    #    f"Frame Diff Detection: area={area:.0f}, pos=({x},{y}), size=({w}x{h}), ratio={aspect_ratio:.2f}")
         return objects
 
     def detect_hand_cards(self, frame, which="ally"):
-        print("RUNNING MODEL")
+        #print("RUNNING MODEL")
         try:
             # Capture individual cards with frame and player type
             card_data = self.actions.capture_individual_cards(
@@ -470,14 +373,40 @@ class TroopDetector:
         ally_placed = self.check_card_changes("ally")
         enemy_placed = self.check_card_changes("enemy")
 
-        # Combine all card changes
+        # --- Troop delay logic (streamlined, before detection) ---
+        if not hasattr(self, 'troop_delay_buffer'):
+            self.troop_delay_buffer = {}
+        delay_config = {}
+        import json
+        with open('troop_bias_config.json', 'r') as f:
+            troop_config = json.load(f)["troops"]
+        for troop_name, info in troop_config.items():
+            if any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in info.get('biased_positions', [])):
+                delay_config[troop_name] = 4
+            else:
+                delay_config[troop_name] = 0
+
+        # Buffer new placements and decrement all delay counters every frame
         all_changes = []
-        if ally_placed:
-            all_changes.extend(ally_placed)
-            print("ally placed:", ally_placed)
-        if enemy_placed:
-            all_changes.extend(enemy_placed)
-            print("enemy placed:", enemy_placed)
+        # Add new troops to buffer if not present, storing player info
+        for troop in (ally_placed or []):
+            if troop not in self.troop_delay_buffer:
+                self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'ally'}
+        for troop in (enemy_placed or []):
+            if troop not in self.troop_delay_buffer:
+                self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'enemy'}
+        # Decrement all delay counters and release troops when ready
+        for troop in list(self.troop_delay_buffer.keys()):
+            entry = self.troop_delay_buffer[troop]
+            if entry['delay'] > 0:
+                print(f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
+                entry['delay'] -= 1
+                self.troop_delay_buffer[troop] = entry
+            else:
+                all_changes.append({'troop': troop, 'player': entry['player']})
+                del self.troop_delay_buffer[troop]
+        if all_changes:
+            print("Ready for detection:", all_changes)
 
         # Always track arena changes (tracking region always visible)
         debug_frame = self.track_arena_changes(
