@@ -6,23 +6,24 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 246.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 0.5 # s per frame delay
+DELAY = 2  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
-THRESHOLD = 9 # threshold for color difference to run card detection model
-COOLDOWN_FRAMES = 1 # amount of frames after a detection to wait before detecting the next change
+THRESHOLD = 9  # threshold for color difference to run card detection model
+# amount of frames after a detection to wait before detecting the next change
+COOLDOWN_FRAMES = 1
 
 
 # MOG2 settings
-MOG2_BIAS_BOOST = 2 # boost troops on our side by 2x
+MOG2_BIAS_BOOST = 2  # boost troops on our side by 2x
 HISTORY = 20
 VAR_THRESHOLD = 15
-LEARNING_RATE = 0.1 # how fast changes are adapted into model background
+LEARNING_RATE = 0.1  # how fast changes are adapted into model background
 
 # Debug setting: Enable/disable MOG2 detection on every frame
 MOG2_DEBUG_ALWAYS_RUN = True
@@ -75,18 +76,19 @@ ENEMY_HAND_COORDS = [
 ALLY_CARD_BAR_X = ALLY_HAND_COORDS[0][0]
 ALLY_CARD_BAR_Y = ALLY_HAND_COORDS[0][1]
 # Proper width to include all 4 cards
-ALLY_CARD_BAR_WIDTH = (ALLY_HAND_COORDS[3][0] + ALLY_HAND_COORDS[3][2]) - ALLY_HAND_COORDS[0][0]
+ALLY_CARD_BAR_WIDTH = (
+    ALLY_HAND_COORDS[3][0] + ALLY_HAND_COORDS[3][2]) - ALLY_HAND_COORDS[0][0]
 ALLY_CARD_BAR_HEIGHT = ALLY_HAND_COORDS[0][3]
 
 ALLY_REGION = (ALLY_CARD_BAR_X, ALLY_CARD_BAR_Y,
-                      ALLY_CARD_BAR_WIDTH, ALLY_CARD_BAR_HEIGHT)
+               ALLY_CARD_BAR_WIDTH, ALLY_CARD_BAR_HEIGHT)
 
 ENEMY_CARD_BAR_X = ENEMY_HAND_COORDS[0][0]
 ENEMY_CARD_BAR_Y = ENEMY_HAND_COORDS[0][1]
 # Proper width to include all 4 cards
-ENEMY_CARD_BAR_WIDTH = (ENEMY_HAND_COORDS[3][0] + ENEMY_HAND_COORDS[3][2]) - ENEMY_HAND_COORDS[0][0]
+ENEMY_CARD_BAR_WIDTH = (
+    ENEMY_HAND_COORDS[3][0] + ENEMY_HAND_COORDS[3][2]) - ENEMY_HAND_COORDS[0][0]
 ENEMY_CARD_BAR_HEIGHT = ENEMY_HAND_COORDS[0][3]
 
 ENEMY_REGION = (ENEMY_CARD_BAR_X, ENEMY_CARD_BAR_Y,
-                      ENEMY_CARD_BAR_WIDTH, ENEMY_CARD_BAR_HEIGHT)
-
+                ENEMY_CARD_BAR_WIDTH, ENEMY_CARD_BAR_HEIGHT)

@@ -16,17 +16,25 @@ class TroopDetector:
     def score_detection(self, obj, troop_info, player, frame_height, pc, config):
         area = obj['area']
         w, h = obj['w'], obj['h']
-        x, y = obj['x'], obj['y']
+        if 'abs_x' in obj and 'abs_y' in obj:
+            x, y = obj['abs_x'], obj['abs_y']
+        else:
+            # Convert relative to absolute using tracking offset
+            track_x, track_y, _, _ = config.TRACKING_REGION
+        x, y = obj['x'] + track_x, obj['y'] + track_y
         aspect_ratio = h / w if w > 0 else 0
-        size_score = 1.0 - abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
-        ar_score = 1.0 - abs(aspect_ratio - troop_info.get('aspect_ratio', 1.0))/2.0
+        size_score = 1.0 - \
+            abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
+        ar_score = 1.0 - abs(aspect_ratio -
+                             troop_info.get('aspect_ratio', 1.0))/2.0
         pos_score = 0.5
         for pos in troop_info.get('biased_positions', []):
             if isinstance(pos, str) and hasattr(pc, pos.upper()):
                 regions = getattr(pc, pos.upper())[player]
                 for region in regions:
                     px, py, pw, ph = region
-                    if (x >= px-40 and x <= px+pw+40 and y >= py-40 and y <= py+ph+40):
+                    if (x >= px and x <= px+pw and y >= py and y <= py+ph):
+                        print("IN REGION")
                         pos_score = 1.0
                         break
                 if pos_score == 1.0:
@@ -34,7 +42,7 @@ class TroopDetector:
         if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
             if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
                 size_score *= config.MOG2_BIAS_BOOST
-        score = 0.7*size_score + 0.7*ar_score + 0.8*pos_score
+        score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score
         return score
     """Simplified detector for card detection only"""
 
@@ -59,7 +67,7 @@ class TroopDetector:
         # Troop tracking
         self.troop_tracker = TroopTracker(
             max_distance=80.0, max_missing_frames=600)
-        
+
     def setup_card_roboflow(self):
         api_key = os.getenv('ROBOFLOW_API_KEY')
         if not api_key:
@@ -145,7 +153,8 @@ class TroopDetector:
         track_x, track_y, track_w, track_h = config.TRACKING_REGION
         debug_frame = frame.copy()
 
-        current_region = frame[track_y:track_y + track_h, track_x:track_x + track_w]
+        current_region = frame[track_y:track_y +
+                               track_h, track_x:track_x + track_w]
         cv2.rectangle(debug_frame, (track_x, track_y),
                       (track_x + track_w, track_y + track_h), (0, 255, 0), 2)
         cv2.putText(debug_frame, "Hybrid Detection: MOG2 + Frame Diff", (track_x, track_y - 10),
@@ -155,29 +164,35 @@ class TroopDetector:
             cv2.putText(debug_frame, f"Cards: {card_changes}", (track_x, track_y - 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
 
-
-        fg_mask = self.bg_subtractor.apply(current_region, learningRate=config.LEARNING_RATE)
+        fg_mask = self.bg_subtractor.apply(
+            current_region, learningRate=config.LEARNING_RATE)
         self.current_tracking_region = current_region
         self.tracking_offset = (track_x, track_y)
 
-        prev_region = self.previous_arena_frame[track_y:track_y + track_h, track_x:track_x + track_w]
+        prev_region = self.previous_arena_frame[track_y:track_y +
+                                                track_h, track_x:track_x + track_w]
         mog2_objects = self._detect_with_mog2(current_region, fg_mask)
         # Draw small yellow boxes for all MOG2 detections (debugging)
         for obj in mog2_objects:
             abs_x = track_x + obj['x']
             abs_y = track_y + obj['y']
             w, h = obj['w'], obj['h']
-            cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 255, 255), 1)
-            cv2.putText(debug_frame, 'MOG2', (abs_x, abs_y - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
+            cv2.rectangle(debug_frame, (abs_x, abs_y),
+                          (abs_x + w, abs_y + h), (0, 255, 255), 1)
+            cv2.putText(debug_frame, 'MOG2', (abs_x, abs_y - 3),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
 
-        diff_objects = self._detect_with_frame_diff(current_region, prev_region)
+        diff_objects = self._detect_with_frame_diff(
+            current_region, prev_region)
         # Draw purple boxes for all Frame Diff detections (debugging)
         for obj in diff_objects:
             abs_x = track_x + obj['x']
             abs_y = track_y + obj['y']
             w, h = obj['w'], obj['h']
-            cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (255, 0, 255), 1)
-            cv2.putText(debug_frame, 'DIFF', (abs_x, abs_y - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 255), 1)
+            cv2.rectangle(debug_frame, (abs_x, abs_y),
+                          (abs_x + w, abs_y + h), (255, 0, 255), 1)
+            cv2.putText(debug_frame, 'DIFF', (abs_x, abs_y - 3),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 255), 1)
 
         if not card_changes and not config.MOG2_DEBUG_ALWAYS_RUN:
             self.latest_detection = None
@@ -188,7 +203,8 @@ class TroopDetector:
             print(f"DEBUG: Detecting objects for cards: {card_changes}")
 
         all_objects = mog2_objects + diff_objects
-        print(f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
+        print(
+            f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
 
         frame_height = frame.shape[0]
         # Loop over all troops in card_changes
@@ -204,8 +220,10 @@ class TroopDetector:
             best_score = -float('inf')
             if troop_info:
                 for obj in all_objects:
-                    score = self.score_detection(obj, troop_info, player, frame_height, pc, config)
-                    print(f"SCORE:{score} at ({obj['x'] + track_x},{obj['y'] + track_y})")
+                    score = self.score_detection(
+                        obj, troop_info, player, frame_height, pc, config)
+                    print(
+                        f"SCORE:{score} at ({obj['x'] + track_x},{obj['y'] + track_y})")
                     if score > best_score:
                         best_score = score
                         best_object = obj
@@ -218,15 +236,18 @@ class TroopDetector:
                 best_object['player'] = player
                 best_object['x'] = abs_x
                 best_object['y'] = abs_y
-                cv2.rectangle(debug_frame, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
-                cv2.putText(debug_frame, label, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
+                cv2.rectangle(debug_frame, (abs_x, abs_y),
+                              (abs_x + w, abs_y + h), (0, 0, 255), 3)
+                cv2.putText(debug_frame, label, (abs_x, abs_y - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (
+                    abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+                print(
+                    f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
                 self.latest_detections.append(best_object)
         self.previous_arena_frame = frame.copy()
 
         # Print the boxes and their scores
-
 
         return debug_frame
 
@@ -282,12 +303,12 @@ class TroopDetector:
                         'x': x, 'y': y, 'w': w, 'h': h,
                         'area': area, 'method': 'DIFF'
                     })
-                    #print(
+                    # print(
                     #    f"Frame Diff Detection: area={area:.0f}, pos=({x},{y}), size=({w}x{h}), ratio={aspect_ratio:.2f}")
         return objects
 
     def detect_hand_cards(self, frame, which="ally"):
-        #print("RUNNING MODEL")
+        # print("RUNNING MODEL")
         try:
             # Capture individual cards with frame and player type
             card_data = self.actions.capture_individual_cards(
@@ -327,16 +348,16 @@ class TroopDetector:
         except Exception as e:
             print(f"Error in detect_hand_cards for {which}: {e}")
             return []
-        
+
     def should_run_card_detection(self, frame: np.ndarray, which, threshold=config.THRESHOLD, cooldown_frames=config.COOLDOWN_FRAMES):
         if not hasattr(self, 'card_detection_cooldown'):
             self.card_detection_cooldown = {'ally': 0, 'enemy': 0}
-        
+
         # skip this frame if on cooldown to avoid counting the brief background appearance
         if self.card_detection_cooldown[which] > 0:
             self.card_detection_cooldown[which] -= 1
             return False
-        
+
         # Define your card region, e.g., from config
         if which == 'ally':
             x, y, w, h = config.ALLY_REGION
@@ -344,19 +365,20 @@ class TroopDetector:
             x, y, w, h = config.ENEMY_REGION
         else:
             print("invalid which passed in should_run_card_detection")
-        
+
         curr_crop = frame[y:y+h, x:x+w]
         curr_mean = np.mean(curr_crop, axis=(0, 1))
         if self.previous_full_frame is None:
             return True  # Always run on first frame
         prev_crop = self.previous_full_frame[y:y+h, x:x+w]
-        prev_mean = np.mean(prev_crop,axis=(0,1))
-        #diff = cv2.absdiff(curr_crop, prev_crop) # pixel diff
-        #mean_diff = np.mean(diff)
+        prev_mean = np.mean(prev_crop, axis=(0, 1))
+        # diff = cv2.absdiff(curr_crop, prev_crop) # pixel diff
+        # mean_diff = np.mean(diff)
         color_dist = np.linalg.norm(curr_mean - prev_mean)
 
         if color_dist > threshold:
-            self.card_detection_cooldown[which] = cooldown_frames # set cooldown frames
+            # set cooldown frames
+            self.card_detection_cooldown[which] = cooldown_frames
             print(f"DETECTING CARD on dist of {color_dist}")
             return True
         else:
@@ -400,22 +422,26 @@ class TroopDetector:
         skip = config.FRAME_SKIP
         for troop_name, info in troop_config.items():
             # frames = (frames/second * second)/skip
-            delay_config[troop_name] = np.ceil((FPS * info.get("delay",0))/skip)
+            delay_config[troop_name] = np.ceil(
+                (FPS * info.get("delay", 0))/skip)
 
         # Buffer new placements and decrement all delay counters every frame
         all_changes = []
         # Add new troops to buffer if not present, storing player info
         for troop in (ally_placed or []):
             if troop not in self.troop_delay_buffer:
-                self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'ally'}
+                self.troop_delay_buffer[troop] = {
+                    'delay': delay_config.get(troop, 0), 'player': 'ally'}
         for troop in (enemy_placed or []):
             if troop not in self.troop_delay_buffer:
-                self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'enemy'}
+                self.troop_delay_buffer[troop] = {
+                    'delay': delay_config.get(troop, 0), 'player': 'enemy'}
         # Decrement all delay counters and release troops when ready
         for troop in list(self.troop_delay_buffer.keys()):
             entry = self.troop_delay_buffer[troop]
             if entry['delay'] > 0:
-                print(f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
+                print(
+                    f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
                 entry['delay'] -= 1
                 self.troop_delay_buffer[troop] = entry
             else:
@@ -427,7 +453,6 @@ class TroopDetector:
         # Always track arena changes (tracking region always visible)
         debug_frame = self.track_arena_changes(
             frame, all_changes, ally_placed, enemy_placed)
-
 
         # Prepare detections for tracker
         detections_for_tracker = []

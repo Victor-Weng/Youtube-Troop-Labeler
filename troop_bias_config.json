@@ -91,7 +91,7 @@
             "delay": 0.1
         },
         "cannon": {
-            "size_rank": 4,
+            "size_rank": 5,
             "aspect_ratio": 0.8,
             "biased_positions": ["BUILDING"],
             "delay": 0.1
@@ -403,8 +403,8 @@
             "delay": 0.1
         },
         "miner": {
-            "size_rank": 3,
-            "aspect_ratio": 1.0,
+            "size_rank": 2,
+            "aspect_ratio": 1.4,
             "biased_positions": ["TOWER"],
             "delay": 1.6
         },
@@ -643,7 +643,7 @@
             "delay": 0.1
         },
         "zap": {
-            "size_rank": 3,
+            "size_rank": 2,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1

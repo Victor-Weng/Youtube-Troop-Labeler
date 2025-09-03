@@ -20,14 +20,14 @@ class VideoHandler:
 
     def get_youtube_stream_url(self, youtube_url: str) -> Optional[str]:
         """Get direct stream URL from YouTube"""
-        
+
         try:
             ydl_opts = {
                 'format': 'bestvideo[height>=720]',
                 'quiet': True,
                 'no_warnings': True,
                 'cookiesfrombrowser': ('firefox',),
-                #'cookies': os.path.join(os.path.dirname(__file__), 'cookies.txt'), # cookies to access 
+                # 'cookies': os.path.join(os.path.dirname(__file__), 'cookies.txt'), # cookies to access
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(youtube_url, download=False)
