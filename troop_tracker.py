@@ -3,6 +3,8 @@ import numpy as np
 from typing import List, Dict, Optional, Tuple
 import time
 import config_new as config
+import json
+import os
 
 
 class TroopTrack:
@@ -205,9 +207,154 @@ class TroopTrack:
 
         return None
 
-    def is_stale(self, current_frame: int, max_missing_frames: int = 0) -> bool:
-        """Check if track should be removed due to being missing too long"""
-        return (current_frame - self.last_seen_frame) > max_missing_frames
+    def analyze_tracking_region_content(self, current_frame: np.ndarray) -> Dict:
+        """Analyze the content of the tracking region to determine if it's worth tracking"""
+        if not self.positions:
+            return {'has_content': False, 'score': 0.0}
+
+        last_pos = self.positions[-1]
+        x, y, w, h = last_pos['x'], last_pos['y'], last_pos['w'], last_pos['h']
+
+        # Extract the tracking region
+        roi = current_frame[y:y+h, x:x+w]
+
+        if roi.size == 0:
+            return {'has_content': False, 'score': 0.0}
+
+        # Convert to grayscale for analysis
+        if len(roi.shape) == 3:
+            roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        else:
+            roi_gray = roi
+
+        # Multiple content analysis metrics
+        content_score = 0.0
+
+        try:
+            # 1. Edge density - areas with troops should have more edges
+            edges = cv2.Canny(roi_gray, 50, 150)
+            edge_density = np.sum(edges > 0) / (w * h)
+            edge_score = min(1.0, edge_density * 100)  # Normalize
+
+            # 2. Texture variance - troops have more texture than background
+            texture_score = np.var(roi_gray) / 1000.0  # Normalize variance
+            texture_score = min(1.0, texture_score)
+
+            # 3. Color variation (if color image)
+            color_score = 0.0
+            if len(roi.shape) == 3:
+                # Standard deviation across color channels
+                color_std = np.std(roi.reshape(-1, 3), axis=0)
+                color_score = min(1.0, np.mean(color_std) / 50.0)
+
+            # 4. Corner/feature density
+            corners = cv2.goodFeaturesToTrack(
+                roi_gray, maxCorners=50, qualityLevel=0.01, minDistance=5)
+            corner_density = len(corners) / \
+                (w * h * 0.001) if corners is not None else 0
+            corner_score = min(1.0, corner_density)
+
+            # Combine scores with weights
+            content_score = (
+                edge_score * 0.3 +
+                texture_score * 0.3 +
+                color_score * 0.2 +
+                corner_score * 0.2
+            )
+
+            return {
+                'has_content': content_score > 0.15,  # Threshold for "interesting" content
+                'score': content_score,
+                'edge_density': edge_density,
+                'texture_var': np.var(roi_gray),
+                'corner_count': len(corners) if corners is not None else 0
+            }
+
+        except Exception as e:
+            print(f"Content analysis error for track {self.track_id}: {e}")
+            return {'has_content': False, 'score': 0.0}
+
+    def is_stale(self, current_frame: int, max_missing_frames: int = 0, troop_config: Dict = None, frame_data: np.ndarray = None) -> bool:
+        """Check if track should be removed due to being missing too long, exceeding duration, or lack of content"""
+        # Check if missing too long (real detections only)
+        missing_frames = current_frame - self.last_seen_frame
+        if missing_frames > max_missing_frames:
+            return True
+
+        # MOVEMENT-BASED REMOVAL: Check if track is moving or just stuck
+        if frame_data is not None and len(self.positions) >= 4:
+            if not hasattr(self, 'low_activity_count'):
+                self.low_activity_count = 0
+
+            # Calculate movement over last few frames
+            recent_positions = self.positions[-4:]  # Last 4 positions
+
+            # Calculate total movement distance
+            total_movement = 0
+            for i in range(1, len(recent_positions)):
+                prev_pos = recent_positions[i-1]
+                curr_pos = recent_positions[i]
+
+                # Distance between centers
+                prev_center = (prev_pos['x'] + prev_pos['w'] //
+                               2, prev_pos['y'] + prev_pos['h']//2)
+                curr_center = (curr_pos['x'] + curr_pos['w'] //
+                               2, curr_pos['y'] + curr_pos['h']//2)
+
+                dx = curr_center[0] - prev_center[0]
+                dy = curr_center[1] - prev_center[1]
+                movement = (dx*dx + dy*dy) ** 0.5
+                total_movement += movement
+
+            # Average movement per frame
+            avg_movement = total_movement / (len(recent_positions) - 1)
+
+            # DEBUG: Print movement analysis
+            print(f"MOVEMENT DEBUG Track {self.track_id} ({self.card_type}):")
+            print(
+                f"  Total movement over {len(recent_positions)-1} frames: {total_movement:.2f} pixels")
+            print(f"  Average movement per frame: {avg_movement:.2f} pixels")
+            print(f"  Low activity count: {self.low_activity_count}")
+
+            # Consider low activity if moving less than 2 pixels per frame on average
+            has_movement = avg_movement > 2.0
+
+            # Count low activity frames
+            if not has_movement:
+                self.low_activity_count += 1
+                print(
+                    f"Track {self.track_id} LOW MOVEMENT frame {self.low_activity_count}/4 (avg: {avg_movement:.2f} px/frame)")
+                # Remove after 4 frames of low movement
+                if self.low_activity_count >= 4:
+                    print(
+                        f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
+                    return True
+            else:
+                # Reset counter if movement is found
+                if self.low_activity_count > 0:
+                    print(
+                        f"Track {self.track_id} MOVEMENT FOUND - resetting counter from {self.low_activity_count} (avg: {avg_movement:.2f} px/frame)")
+                self.low_activity_count = 0
+
+        # Check if troop has exceeded its duration (for spells/temporary effects)
+        if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
+            troop_info = troop_config['troops'][self.card_type.lower()]
+            duration = troop_info.get('duration')
+
+            if duration is not None:
+                # Calculate how many frames this troop has existed
+                frames_alive = current_frame - self.creation_frame
+                # Convert duration from seconds to frames (assuming 30 FPS)
+                # You can adjust this FPS value based on your video
+                fps = config.FPS
+                max_duration_frames = (duration * fps)/config.FRAME_SKIP
+
+                if frames_alive > max_duration_frames:
+                    print(
+                        f"Track {self.track_id} ({self.card_type}) exceeded duration: {frames_alive} frames > {max_duration_frames} frames ({duration}s)")
+                    return True
+
+        return False
 
 
 class TroopTracker:
@@ -218,6 +365,20 @@ class TroopTracker:
         self.next_track_id = 1
         self.max_distance = max_distance  # Max distance to associate detection with track
         self.max_missing_frames = max_missing_frames
+
+        # Load troop configuration for duration checking
+        self.troop_config = self._load_troop_config()
+
+    def _load_troop_config(self) -> Dict:
+        """Load troop configuration from JSON file"""
+        try:
+            config_path = "troop_bias_config.json"
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load troop config: {e}")
+        return {}
 
     def track_existing_troops(self, current_frame: np.ndarray, previous_frame: np.ndarray, frame_number: int) -> List[Dict]:
         """Track existing troops using optical flow"""
@@ -236,13 +397,14 @@ class TroopTracker:
 
         return tracking_detections
 
-    def update(self, detections: List[Dict], frame_number: int) -> List[TroopTrack]:
+    def update(self, detections: List[Dict], frame_number: int, current_frame: np.ndarray = None) -> List[TroopTrack]:
         """
         Update tracker with new detections from current frame
 
         Args:
             detections: List of detection dicts with keys: x, y, w, h, area, method
             frame_number: Current frame number
+            current_frame: Current frame data for content analysis
 
         Returns:
             List of active tracks
@@ -278,16 +440,18 @@ class TroopTracker:
         # Remove stale tracks and tracks with low confidence for several frames
         active_tracks = []
         for track in self.tracks:
-            # Remove if stale
-            if track.is_stale(frame_number, self.max_missing_frames):
+            # Remove if stale (includes duration and content checking)
+            if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame):
                 print(
                     f"Removed stale track {track.track_id} (missing {frame_number - track.last_seen_frame} frames)")
                 continue
             # Remove if confidence is low for last 2 positions
             if len(track.positions) >= 2:
-                last_confidences = [p.get('confidence', 1.0) for p in track.positions[-2:]]
+                last_confidences = [p.get('confidence', 1.0)
+                                    for p in track.positions[-2:]]
                 if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
-                    print(f"Removed track {track.track_id} due to low confidence (last 2 positions)")
+                    print(
+                        f"Removed track {track.track_id} due to low confidence (last 2 positions)")
                     continue
             active_tracks.append(track)
         self.tracks = active_tracks
@@ -329,10 +493,12 @@ class TroopTracker:
             # Associate best match
             if best_detection:
                 # Only update last_seen_frame if this is a real detection (not optical flow)
-                is_real_detection = best_detection.get('method', '') != 'OPTICAL_FLOW'
-                track.update_position(best_detection, frame_number, is_real_detection=is_real_detection)
+                is_real_detection = best_detection.get(
+                    'method', '') != 'OPTICAL_FLOW'
+                track.update_position(
+                    best_detection, frame_number, is_real_detection=is_real_detection)
                 unmatched_detections.remove(best_detection)
-                #print(
+                # print(
                 #    f"Updated track {track.track_id} at ({best_detection['center_x']:.0f}, {best_detection['center_y']:.0f}) distance={best_distance:.1f}")
 
         return unmatched_detections
