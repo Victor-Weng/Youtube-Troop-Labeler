@@ -8,6 +8,7 @@ import os
 import logging
 from typing import Optional
 import config_new as config
+from troop_tracker import TroopTracker
 
 
 class VideoHandler:
@@ -17,6 +18,7 @@ class VideoHandler:
         self.logger = logging.getLogger(__name__)
         self.cap = None
         self.frame_count = 0
+        self.troop_tracker = TroopTracker()
 
     def get_youtube_stream_url(self, youtube_url: str) -> Optional[str]:
         """Get direct stream URL from YouTube"""
@@ -107,6 +109,13 @@ class VideoHandler:
                     detected_objects, debug_frame, placement_events = detector.process_frame(
                         frame, self.frame_count
                     )
+
+                    print("detected objects:")
+                    print(detected_objects)
+
+                    # run update to removal stale updates
+                    ret, frame = self.cap.read()
+                    self.troop_tracker.update(detected_objects,self.frame_count,current_frame=frame)
 
                     # Display frame
                     cv2.imshow('Card Detection', debug_frame)

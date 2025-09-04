@@ -220,6 +220,9 @@ class TroopDetector:
             best_score = -float('inf')
             if troop_info:
                 for obj in all_objects:
+                    # Area fix: ensure 'area' key exists
+                    if 'area' not in obj:
+                        obj['area'] = obj.get('w', 1) * obj.get('h', 1)
                     score = self.score_detection(
                         obj, troop_info, player, frame_height, pc, config)
                     print(
@@ -240,10 +243,10 @@ class TroopDetector:
                               (abs_x + w, abs_y + h), (0, 0, 255), 3)
                 cv2.putText(debug_frame, label, (abs_x, abs_y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                cv2.putText(debug_frame, f"Area:{best_object['area']:.0f} Method:{best_object['method']}", (
+                cv2.putText(debug_frame, f"Area:{best_object.get('area', 0):.0f} Method:{best_object.get('method', '?')}", (
                     abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
                 print(
-                    f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object['area']:.0f} via {best_object['method']}")
+                    f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object.get('area', 0):.0f} via {best_object.get('method', '?')}")
                 self.latest_detections.append(best_object)
         self.previous_arena_frame = frame.copy()
 
