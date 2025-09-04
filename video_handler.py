@@ -105,19 +105,12 @@ class VideoHandler:
                     frame = cv2.resize(frame, (new_width, new_height))
 
                 try:
-                    # Run detection on frame
+                    # Run detection on frame - this handles ALL tracking updates AND drawing internally
                     detected_objects, debug_frame, placement_events = detector.process_frame(
                         frame, self.frame_count
                     )
 
-                    print("detected objects:")
-                    print(detected_objects)
-
-                    # run update to removal stale updates
-                    ret, frame = self.cap.read()
-                    self.troop_tracker.update(detected_objects,self.frame_count,current_frame=frame)
-
-                    # Display frame
+                    # Display frame (debug_frame already has detection + tracking boxes drawn)
                     cv2.imshow('Card Detection', debug_frame)
 
                     # Add delay for testing (adjust the value as needed)

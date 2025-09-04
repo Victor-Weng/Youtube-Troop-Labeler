@@ -470,9 +470,9 @@ class TroopDetector:
                 frame, self.previous_full_frame, frame_number)
             detections_for_tracker.extend(tracking_detections)
 
-        # Update tracker with all detections (new + tracked)
+        # Update tracker with all detections (new + tracked) and current frame for movement analysis
         active_tracks = self.troop_tracker.update(
-            detections_for_tracker, frame_number)
+            detections_for_tracker, frame_number, current_frame=frame)
 
         # Store current frame for next iteration
         self.previous_full_frame = frame.copy()

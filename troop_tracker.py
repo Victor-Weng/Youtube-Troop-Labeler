@@ -324,8 +324,17 @@ class TroopTrack:
                 self.low_activity_count += 1
                 print(
                     f"Track {self.track_id} LOW MOVEMENT frame {self.low_activity_count}/4 (avg: {avg_movement:.2f} px/frame)")
-                # Remove after 4 frames of low movement
-                if self.low_activity_count >= 4:
+
+                # Check if this troop is a building (shouldn't be removed for low movement)
+                is_building = False
+                if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
+                    troop_info = troop_config['troops'][self.card_type.lower()]
+                    biased_positions = troop_info.get("biased_position", [])
+                    is_building = any(
+                        pos == "BUILDING" for pos in biased_positions)
+
+                # Remove after 4 frames of low movement (but not for buildings)
+                if self.low_activity_count >= 4 and not is_building:
                     print(
                         f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
                     return True
@@ -343,11 +352,11 @@ class TroopTrack:
 
             if duration is not None:
                 # Calculate how many frames this troop has existed
-                frames_alive = current_frame - self.creation_frame
+                frames_alive = (current_frame - self.creation_frame)
                 # Convert duration from seconds to frames (assuming 30 FPS)
                 # You can adjust this FPS value based on your video
                 fps = config.FPS
-                max_duration_frames = (duration * fps)/config.FRAME_SKIP
+                max_duration_frames = (duration * fps)
 
                 if frames_alive > max_duration_frames:
                     print(
@@ -417,7 +426,7 @@ class TroopTracker:
             standardized_detections.append({
                 'x': det['x'], 'y': det['y'], 'w': det['w'], 'h': det['h'],
                 'center_x': center_x, 'center_y': center_y,
-                'area': det['area'], 'method': det['method'],
+                'area': det['w']*det['h'],
                 'card_type': det.get('card_type', 'Unknown'),
                 'player': det.get('player', 'Unknown')
             })
@@ -433,17 +442,18 @@ class TroopTracker:
         for detection in unmatched_detections:
             new_track = TroopTrack(self.next_track_id, detection, frame_number)
             self.tracks.append(new_track)
-            self.next_track_id += 1
             print(
-                f"Created new track {new_track.track_id} at ({detection['center_x']:.0f}, {detection['center_y']:.0f})")
+                f"TRACK CREATED: ID {self.next_track_id} ({detection.get('card_type', 'Unknown')}) at frame {frame_number}")
+            self.next_track_id += 1
 
         # Remove stale tracks and tracks with low confidence for several frames
+        initial_count = len(self.tracks)
         active_tracks = []
         for track in self.tracks:
             # Remove if stale (includes duration and content checking)
             if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame):
                 print(
-                    f"Removed stale track {track.track_id} (missing {frame_number - track.last_seen_frame} frames)")
+                    f"CONFIRMED REMOVAL: Track {track.track_id} ({track.card_type}) - Total tracks: {initial_count} -> {initial_count - 1}")
                 continue
             # Remove if confidence is low for last 2 positions
             if len(track.positions) >= 2:
@@ -451,10 +461,19 @@ class TroopTracker:
                                     for p in track.positions[-2:]]
                 if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
                     print(
-                        f"Removed track {track.track_id} due to low confidence (last 2 positions)")
+                        f"CONFIRMED REMOVAL: Track {track.track_id} ({track.card_type}) - Low confidence")
                     continue
             active_tracks.append(track)
+
+        # Force update the tracks list and clear any stale references
+        old_count = len(self.tracks)
         self.tracks = active_tracks
+        new_count = len(self.tracks)
+
+        # Debug: Confirm the change took effect
+        if old_count != new_count:
+            print(f"TRACKS UPDATED: {old_count} -> {new_count}")
+
         return self.tracks
 
     def _predict_tracks(self, frame_number: int):
@@ -528,10 +547,10 @@ class TroopTracker:
         """Draw tracking visualization on frame"""
         debug_frame = frame.copy()
 
-        for track in self.tracks:
-            if not track.positions:
-                continue
+        # Force refresh - get current active tracks
+        current_tracks = [t for t in self.tracks if t.positions]
 
+        for track in current_tracks:
             last_pos = track.positions[-1]
             x, y, w, h = last_pos['x'], last_pos['y'], last_pos['w'], last_pos['h']
 
@@ -570,7 +589,10 @@ class TroopTracker:
                 cv2.circle(debug_frame, (int(pred_x), int(pred_y)),
                            5, (255, 0, 255), 2)
 
-        # Draw tracker stats
+        # Draw tracker stats - FORCE CLEAR BACKGROUND FIRST
+        stats_region = debug_frame[0:50, 0:400]  # Clear stats area
+        stats_region.fill(0)  # Black background to eliminate old text
+
         confirmed_count = sum(1 for t in self.tracks if t.confirmed)
         cv2.putText(debug_frame, f"Tracks: {len(self.tracks)} ({confirmed_count} confirmed)",
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
