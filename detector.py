@@ -234,11 +234,41 @@ class TroopDetector:
                 abs_x = track_x + best_object['x']
                 abs_y = track_y + best_object['y']
                 w, h = best_object['w'], best_object['h']
+
+                # Expand small detections to minimum size
+                min_width = config.MIN_DETECTION_WIDTH
+                min_height = config.MIN_DETECTION_HEIGHT
+                original_w, original_h = w, h
+
+                if w < min_width or h < min_height:
+                    # Calculate expansion needed
+                    width_expansion = max(0, min_width - w)
+                    height_expansion = max(0, min_height - h)
+
+                    # Expand from center - adjust position and size
+                    abs_x = abs_x - width_expansion // 2
+                    abs_y = abs_y - height_expansion // 2
+                    w = max(w, min_width)
+                    h = max(h, min_height)
+
+                    # Ensure we don't go outside frame bounds
+                    abs_x = max(0, abs_x)
+                    abs_y = max(0, abs_y)
+                    # Assuming 720x1280 frame size from config
+                    abs_x = min(720 - w, abs_x)
+                    abs_y = min(1280 - h, abs_y)
+
+                    print(
+                        f"EXPANDED DETECTION: {troop} from {original_w}x{original_h} to {w}x{h} at ({abs_x},{abs_y})")
+
                 label = f"{player}_{troop}"
                 best_object['card_type'] = troop
                 best_object['player'] = player
                 best_object['x'] = abs_x
                 best_object['y'] = abs_y
+                best_object['w'] = w  # Update with expanded width
+                best_object['h'] = h  # Update with expanded height
+                best_object['area'] = w * h  # Update area calculation
                 cv2.rectangle(debug_frame, (abs_x, abs_y),
                               (abs_x + w, abs_y + h), (0, 0, 255), 3)
                 cv2.putText(debug_frame, label, (abs_x, abs_y - 10),

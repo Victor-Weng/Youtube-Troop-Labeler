@@ -13,6 +13,11 @@ DELAY = 2  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
+
+# Minimum detection size expansion
+MIN_DETECTION_WIDTH = 75   # Minimum width for detection boxes
+MIN_DETECTION_HEIGHT = 100  # Minimum height for detection boxes
+
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
 THRESHOLD = 9  # threshold for color difference to run card detection model
 # amount of frames after a detection to wait before detecting the next change

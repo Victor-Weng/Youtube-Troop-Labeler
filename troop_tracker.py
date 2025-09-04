@@ -329,9 +329,15 @@ class TroopTrack:
                 is_building = False
                 if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
                     troop_info = troop_config['troops'][self.card_type.lower()]
-                    biased_positions = troop_info.get("biased_position", [])
+                    biased_positions = troop_info.get(
+                        "biased_positions", [])  # Fixed: plural
                     is_building = any(
                         pos == "BUILDING" for pos in biased_positions)
+
+                    # Debug: Show building check result
+                    if biased_positions:
+                        print(
+                            f"Track {self.track_id} ({self.card_type}) biased_positions: {biased_positions}, is_building: {is_building}")
 
                 # Remove after 4 frames of low movement (but not for buildings)
                 if self.low_activity_count >= 4 and not is_building:
