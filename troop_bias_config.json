@@ -60,7 +60,7 @@
             "aspect_ratio": 1.2,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 40.0
+            "duration": 20.0
         },
         "barbarians": {
             "size_rank": 7,
@@ -95,7 +95,7 @@
             "aspect_ratio": 1.4,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": 15
         },
         "bomber": {
             "size_rank": 2,
@@ -116,7 +116,7 @@
             "aspect_ratio": 1.3,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": 14.0
         },
         "cannon cart": {
             "size_rank": 5,
@@ -172,7 +172,7 @@
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 10.5
+            "duration": 6.5
         },
         "electro wizard": {
             "size_rank": 3,
@@ -214,7 +214,7 @@
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 10.5
+            "duration": 6.5
         },
         "fireball": {
             "size_rank": 5,
@@ -256,7 +256,7 @@
             "aspect_ratio": 1.0,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 28.0
+            "duration": 20.0
         },
         "giant": {
             "size_rank": 9,
@@ -291,7 +291,7 @@
             "aspect_ratio": 1.0,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 40.0
+            "duration": 20.0
         },
         "goblin drill": {
             "size_rank": 5,
@@ -319,7 +319,7 @@
             "aspect_ratio": 1.1,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 40.0
+            "duration": 20.0
         },
         "goblins": {
             "size_rank": 2,
@@ -361,7 +361,7 @@
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 10.5
+            "duration": 6.5
         },
         "hog rider": {
             "size_rank": 4,
@@ -389,7 +389,7 @@
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 10.5
+            "duration": 6.5
         },
         "ice wizard": {
             "size_rank": 3,
@@ -690,7 +690,7 @@
             "aspect_ratio": 1.6,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": 15
         },
         "the log": {
             "size_rank": 3,
@@ -711,7 +711,7 @@
             "aspect_ratio": 1.5,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 40.0
+            "duration": 20.0
         },
         "tornado": {
             "size_rank": 6,

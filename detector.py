@@ -33,8 +33,16 @@ class TroopDetector:
                 regions = getattr(pc, pos.upper())[player]
                 for region in regions:
                     px, py, pw, ph = region
-                    if (x >= px and x <= px+pw and y >= py and y <= py+ph):
-                        print("IN REGION")
+                    # Check if ENTIRE detection bounding box fits within region
+                    detection_right = x + w
+                    detection_bottom = y + h
+                    region_right = px + pw
+                    region_bottom = py + ph
+
+                    if (x >= px and detection_right <= region_right and
+                            y >= py and detection_bottom <= region_bottom):
+                        print(
+                            f"ENTIRE DETECTION IN REGION: ({x},{y},{w},{h}) within ({px},{py},{pw},{ph})")
                         pos_score = 1.0
                         break
                 if pos_score == 1.0:
@@ -129,6 +137,10 @@ class TroopDetector:
         # Get average color of the sample region
         self.arena_background_color = cv2.mean(arena_sample)[:3]  # BGR values
         print(f"Arena background color set to: {self.arena_background_color}")
+
+        # Pass the background color to the troop tracker for building removal
+        self.troop_tracker.set_arena_background_color(
+            self.arena_background_color)
 
     def track_arena_changes(self, frame, card_changes, ally_placed, enemy_placed):
         import placement_config as pc

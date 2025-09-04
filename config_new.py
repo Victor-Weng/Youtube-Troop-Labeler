@@ -9,7 +9,7 @@ RESIZE_FACTOR = 1.0  # Keep original size
 START_TIME_SECONDS = 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 2  # s per frame delay
+DELAY = 0.2  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
@@ -60,6 +60,11 @@ TEST_VIDEO_PATH = None  # "test_video.mp4"
 # Arena region for background color sampling (x, y, width, height)
 # This should be a central area of the game arena
 ARENA_SAMPLE_REGION = (437, 828, 50, 50)  # Center of 720x1280 frame (portrait)
+
+# Building removal parameters
+# Color difference threshold for background matching
+BUILDING_BG_COLOR_THRESHOLD = 30.0
+BUILDING_BG_MATCH_FRAMES = 2        # Frames of background matching before removal
 
 # Card hand detection coordinates (for 720x1280 video - portrait)
 # Ally hand positions (bottom of screen) - adjust these based on your video

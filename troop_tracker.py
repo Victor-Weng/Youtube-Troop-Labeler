@@ -274,7 +274,49 @@ class TroopTrack:
             print(f"Content analysis error for track {self.track_id}: {e}")
             return {'has_content': False, 'score': 0.0}
 
-    def is_stale(self, current_frame: int, max_missing_frames: int = 0, troop_config: Dict = None, frame_data: np.ndarray = None) -> bool:
+    def analyze_background_match(self, current_frame: np.ndarray, arena_bg_color: np.ndarray = None) -> Dict:
+        """Analyze if tracking region matches background colors (for building removal)"""
+        if not self.positions:
+            return {'matches_background': False, 'color_diff': float('inf')}
+
+        # Check if arena background color is available
+        if arena_bg_color is None:
+            return {'matches_background': False, 'color_diff': float('inf')}
+
+        last_pos = self.positions[-1]
+        x, y, w, h = last_pos['x'], last_pos['y'], last_pos['w'], last_pos['h']
+
+        # Extract the tracking region
+        track_roi = current_frame[y:y+h, x:x+w]
+        if track_roi.size == 0:
+            return {'matches_background': False, 'color_diff': float('inf')}
+
+        try:
+            # Calculate average color of tracking region
+            track_avg_color = np.mean(track_roi.reshape(-1, 3), axis=0)
+
+            # Use the provided arena background color (BGR format)
+            bg_avg_color = arena_bg_color
+
+            # Calculate color difference (Euclidean distance in RGB space)
+            color_diff = np.linalg.norm(track_avg_color - bg_avg_color)
+
+            # Consider it a background match if color difference is small
+            threshold = config.BUILDING_BG_COLOR_THRESHOLD
+            matches_background = color_diff < threshold
+
+            return {
+                'matches_background': matches_background,
+                'color_diff': color_diff,
+                'track_color': track_avg_color,
+                'bg_color': bg_avg_color
+            }
+
+        except Exception as e:
+            print(f"Background analysis error for track {self.track_id}: {e}")
+            return {'matches_background': False, 'color_diff': float('inf')}
+
+    def is_stale(self, current_frame: int, max_missing_frames: int = 0, troop_config: Dict = None, frame_data: np.ndarray = None, arena_bg_color: np.ndarray = None) -> bool:
         """Check if track should be removed due to being missing too long, exceeding duration, or lack of content"""
         # Check if missing too long (real detections only)
         missing_frames = current_frame - self.last_seen_frame
@@ -325,25 +367,46 @@ class TroopTrack:
                 print(
                     f"Track {self.track_id} LOW MOVEMENT frame {self.low_activity_count}/4 (avg: {avg_movement:.2f} px/frame)")
 
-                # Check if this troop is a building (shouldn't be removed for low movement)
+                # Check if this troop is a building
                 is_building = False
                 if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
                     troop_info = troop_config['troops'][self.card_type.lower()]
-                    biased_positions = troop_info.get(
-                        "biased_positions", [])  # Fixed: plural
+                    biased_positions = troop_info.get("biased_positions", [])
                     is_building = any(
                         pos == "BUILDING" for pos in biased_positions)
 
-                    # Debug: Show building check result
-                    if biased_positions:
-                        print(
-                            f"Track {self.track_id} ({self.card_type}) biased_positions: {biased_positions}, is_building: {is_building}")
+                # BUILDING-SPECIFIC REMOVAL: Use background color matching
+                if is_building:
+                    if not hasattr(self, 'bg_match_count'):
+                        self.bg_match_count = 0
 
-                # Remove after 4 frames of low movement (but not for buildings)
-                if self.low_activity_count >= 4 and not is_building:
-                    print(
-                        f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
-                    return True
+                    bg_analysis = self.analyze_background_match(
+                        frame_data, arena_bg_color)
+
+                    if bg_analysis['matches_background']:
+                        self.bg_match_count += 1
+                        print(
+                            f"Track {self.track_id} BUILDING BACKGROUND MATCH {self.bg_match_count}/6 (color_diff: {bg_analysis['color_diff']:.1f})")
+
+                        # Remove building after configurable frames of background matching
+                        if self.bg_match_count >= config.BUILDING_BG_MATCH_FRAMES:
+                            print(
+                                f"Track {self.track_id} ({self.card_type}) removed: background match for {self.bg_match_count} frames")
+                            return True
+                    else:
+                        # Reset counter if building content is detected
+                        if self.bg_match_count > 0:
+                            print(
+                                f"Track {self.track_id} BUILDING CONTENT FOUND - resetting bg counter from {self.bg_match_count}")
+                        self.bg_match_count = 0
+
+                # NON-BUILDING REMOVAL: Use movement-based removal
+                else:
+                    # Remove after 4 frames of low movement (but not for buildings)
+                    if self.low_activity_count >= 4:
+                        print(
+                            f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
+                        return True
             else:
                 # Reset counter if movement is found
                 if self.low_activity_count > 0:
@@ -380,9 +443,15 @@ class TroopTracker:
         self.next_track_id = 1
         self.max_distance = max_distance  # Max distance to associate detection with track
         self.max_missing_frames = max_missing_frames
+        self.arena_background_color = None  # Will be set by detector
 
         # Load troop configuration for duration checking
         self.troop_config = self._load_troop_config()
+
+    def set_arena_background_color(self, color: Tuple[float, float, float]):
+        """Set the arena background color for building background matching"""
+        self.arena_background_color = np.array(color)
+        print(f"TroopTracker: Arena background color set to {color}")
 
     def _load_troop_config(self) -> Dict:
         """Load troop configuration from JSON file"""
@@ -457,7 +526,7 @@ class TroopTracker:
         active_tracks = []
         for track in self.tracks:
             # Remove if stale (includes duration and content checking)
-            if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame):
+            if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame, self.arena_background_color):
                 print(
                     f"CONFIRMED REMOVAL: Track {track.track_id} ({track.card_type}) - Total tracks: {initial_count} -> {initial_count - 1}")
                 continue
