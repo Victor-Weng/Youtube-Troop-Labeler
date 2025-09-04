@@ -352,56 +352,56 @@ class TroopTrack:
             avg_movement = total_movement / (len(recent_positions) - 1)
 
             # DEBUG: Print movement analysis
-            print(f"MOVEMENT DEBUG Track {self.track_id} ({self.card_type}):")
-            print(
-                f"  Total movement over {len(recent_positions)-1} frames: {total_movement:.2f} pixels")
-            print(f"  Average movement per frame: {avg_movement:.2f} pixels")
-            print(f"  Low activity count: {self.low_activity_count}")
+            # print(f"MOVEMENT DEBUG Track {self.track_id} ({self.card_type}):")
+            # print(
+            #    f"  Total movement over {len(recent_positions)-1} frames: {total_movement:.2f} pixels")
+            # print(f"  Average movement per frame: {avg_movement:.2f} pixels")
+            # print(f"  Low activity count: {self.low_activity_count}")
 
             # Consider low activity if moving less than 2 pixels per frame on average
             has_movement = avg_movement > 2.0
 
-            # Count low activity frames
+            # Check if this troop is a building FIRST - before movement logic
+            is_building = False
+            if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
+                troop_info = troop_config['troops'][self.card_type.lower()]
+                biased_positions = troop_info.get("biased_positions", [])
+                is_building = any(
+                    pos == "BUILDING" for pos in biased_positions)
+
+            # BUILDING-SPECIFIC REMOVAL: Use background color matching (REGARDLESS of movement)
+            if is_building:
+                if not hasattr(self, 'bg_match_count'):
+                    self.bg_match_count = 0
+
+                bg_analysis = self.analyze_background_match(
+                    frame_data, arena_bg_color)
+
+                if bg_analysis['matches_background']:
+                    self.bg_match_count += 1
+                    print(
+                        f"Track {self.track_id} BUILDING BACKGROUND MATCH {self.bg_match_count}/{config.BUILDING_BG_MATCH_FRAMES} (color_diff: {bg_analysis['color_diff']:.1f})")
+
+                    # Remove building after configurable frames of background matching
+                    if self.bg_match_count >= config.BUILDING_BG_MATCH_FRAMES:
+                        print(
+                            f"Track {self.track_id} ({self.card_type}) removed: background match for {self.bg_match_count} frames")
+                        return True
+                else:
+                    # Reset counter if building content is detected
+                    if self.bg_match_count > 0:
+                        print(
+                            f"Track {self.track_id} BUILDING CONTENT FOUND - resetting bg counter from {self.bg_match_count}")
+                    self.bg_match_count = 0
+
+            # Count low activity frames for NON-BUILDING movement-based removal
             if not has_movement:
                 self.low_activity_count += 1
-                print(
-                    f"Track {self.track_id} LOW MOVEMENT frame {self.low_activity_count}/4 (avg: {avg_movement:.2f} px/frame)")
-
-                # Check if this troop is a building
-                is_building = False
-                if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
-                    troop_info = troop_config['troops'][self.card_type.lower()]
-                    biased_positions = troop_info.get("biased_positions", [])
-                    is_building = any(
-                        pos == "BUILDING" for pos in biased_positions)
-
-                # BUILDING-SPECIFIC REMOVAL: Use background color matching
-                if is_building:
-                    if not hasattr(self, 'bg_match_count'):
-                        self.bg_match_count = 0
-
-                    bg_analysis = self.analyze_background_match(
-                        frame_data, arena_bg_color)
-
-                    if bg_analysis['matches_background']:
-                        self.bg_match_count += 1
-                        print(
-                            f"Track {self.track_id} BUILDING BACKGROUND MATCH {self.bg_match_count}/6 (color_diff: {bg_analysis['color_diff']:.1f})")
-
-                        # Remove building after configurable frames of background matching
-                        if self.bg_match_count >= config.BUILDING_BG_MATCH_FRAMES:
-                            print(
-                                f"Track {self.track_id} ({self.card_type}) removed: background match for {self.bg_match_count} frames")
-                            return True
-                    else:
-                        # Reset counter if building content is detected
-                        if self.bg_match_count > 0:
-                            print(
-                                f"Track {self.track_id} BUILDING CONTENT FOUND - resetting bg counter from {self.bg_match_count}")
-                        self.bg_match_count = 0
+                # print(
+                #    f"Track {self.track_id} LOW MOVEMENT frame {self.low_activity_count}/4 (avg: {avg_movement:.2f} px/frame)")
 
                 # NON-BUILDING REMOVAL: Use movement-based removal
-                else:
+                if not is_building:
                     # Remove after 4 frames of low movement (but not for buildings)
                     if self.low_activity_count >= 4:
                         print(
@@ -410,9 +410,9 @@ class TroopTrack:
             else:
                 # Reset counter if movement is found
                 if self.low_activity_count > 0:
-                    print(
-                        f"Track {self.track_id} MOVEMENT FOUND - resetting counter from {self.low_activity_count} (avg: {avg_movement:.2f} px/frame)")
-                self.low_activity_count = 0
+                    # print(
+                    #    f"Track {self.track_id} MOVEMENT FOUND - resetting counter from {self.low_activity_count} (avg: {avg_movement:.2f} px/frame)")
+                    self.low_activity_count = 0
 
         # Check if troop has exceeded its duration (for spells/temporary effects)
         if troop_config and self.card_type.lower() in troop_config.get('troops', {}):
@@ -444,6 +444,10 @@ class TroopTracker:
         self.max_distance = max_distance  # Max distance to associate detection with track
         self.max_missing_frames = max_missing_frames
         self.arena_background_color = None  # Will be set by detector
+        # Track removed tracks for detection cleanup
+        self.removed_tracks_for_cleanup = []
+        # List of (x, y, frame_number) for recently removed buildings to prevent recreation
+        self.recently_removed_buildings = []
 
         # Load troop configuration for duration checking
         self.troop_config = self._load_troop_config()
@@ -468,6 +472,7 @@ class TroopTracker:
         """Track existing troops using optical flow"""
         tracking_detections = []
 
+        # Run optical flow tracking on all existing tracks
         for track in self.tracks:
             if not track.positions:
                 continue
@@ -481,7 +486,7 @@ class TroopTracker:
 
         return tracking_detections
 
-    def update(self, detections: List[Dict], frame_number: int, current_frame: np.ndarray = None) -> List[TroopTrack]:
+    def update(self, detections: List[Dict], frame_number: int, current_frame: np.ndarray = None, previous_frame: np.ndarray = None, expecting_new_cards: bool = False) -> List[TroopTrack]:
         """
         Update tracker with new detections from current frame
 
@@ -489,13 +494,68 @@ class TroopTracker:
             detections: List of detection dicts with keys: x, y, w, h, area, method
             frame_number: Current frame number
             current_frame: Current frame data for content analysis
+            previous_frame: Previous frame for optical flow tracking
+            expecting_new_cards: Whether we're expecting new card placements this frame
 
         Returns:
             List of active tracks
         """
+        # CRITICAL FIX: Remove stale tracks FIRST, before any association happens
+        initial_count = len(self.tracks)
+        active_tracks = []
+
+        for track in self.tracks:
+            should_remove = False
+
+            # Remove if stale (includes duration and background matching)
+            if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame, self.arena_background_color):
+                should_remove = True
+
+            # Remove if confidence is low for last 2 positions
+            elif len(track.positions) >= 2:
+                last_confidences = [p.get('confidence', 1.0)
+                                    for p in track.positions[-2:]]
+                if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
+                    should_remove = True
+
+            if not should_remove:
+                active_tracks.append(track)
+
+        # Update tracks list BEFORE association
+        self.tracks = active_tracks
+        if len(self.tracks) != initial_count:
+            pass  # Track removal happened
+
+        # AFTER stale track removal, add optical flow tracking for remaining active tracks
+        tracking_detections = []
+        if previous_frame is not None:
+            # Only track ACTIVE tracks (stale ones already removed)
+            for track in self.tracks:
+                if not track.positions:
+                    continue
+
+                # Try to track this troop's position using optical flow
+                tracked_pos = track.track_position(
+                    current_frame, previous_frame, frame_number)
+
+                if tracked_pos:
+                    tracking_detections.append(tracked_pos)
+
+        # Combine detections based on whether we're expecting new cards
+        if expecting_new_cards:
+            # Use both new detections and optical flow tracking
+            all_detections = detections + tracking_detections
+            print(
+                f"EXPECTING NEW CARDS: Using {len(detections)} new + {len(tracking_detections)} tracking = {len(all_detections)} total detections")
+        else:
+            # Only use optical flow tracking, ignore new detections
+            all_detections = tracking_detections
+            print(
+                f"NOT EXPECTING CARDS: Ignoring {len(detections)} new detections, using only {len(tracking_detections)} tracking detections")
+
         # Convert detections to standardized format
         standardized_detections = []
-        for det in detections:
+        for det in all_detections:  # Use all_detections (new + tracking)
             center_x = det['x'] + det['w'] / 2
             center_y = det['y'] + det['h'] / 2
             standardized_detections.append({
@@ -513,41 +573,19 @@ class TroopTracker:
         unmatched_detections = self._associate_detections(
             standardized_detections, frame_number)
 
-        # Create new tracks for unmatched detections
-        for detection in unmatched_detections:
-            new_track = TroopTrack(self.next_track_id, detection, frame_number)
-            self.tracks.append(new_track)
-            print(
-                f"TRACK CREATED: ID {self.next_track_id} ({detection.get('card_type', 'Unknown')}) at frame {frame_number}")
-            self.next_track_id += 1
-
-        # Remove stale tracks and tracks with low confidence for several frames
-        initial_count = len(self.tracks)
-        active_tracks = []
-        for track in self.tracks:
-            # Remove if stale (includes duration and content checking)
-            if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame, self.arena_background_color):
+        # Create new tracks for unmatched detections ONLY if expecting new cards
+        if expecting_new_cards:
+            for detection in unmatched_detections:
+                new_track = TroopTrack(
+                    self.next_track_id, detection, frame_number)
+                self.tracks.append(new_track)
                 print(
-                    f"CONFIRMED REMOVAL: Track {track.track_id} ({track.card_type}) - Total tracks: {initial_count} -> {initial_count - 1}")
-                continue
-            # Remove if confidence is low for last 2 positions
-            if len(track.positions) >= 2:
-                last_confidences = [p.get('confidence', 1.0)
-                                    for p in track.positions[-2:]]
-                if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
-                    print(
-                        f"CONFIRMED REMOVAL: Track {track.track_id} ({track.card_type}) - Low confidence")
-                    continue
-            active_tracks.append(track)
-
-        # Force update the tracks list and clear any stale references
-        old_count = len(self.tracks)
-        self.tracks = active_tracks
-        new_count = len(self.tracks)
-
-        # Debug: Confirm the change took effect
-        if old_count != new_count:
-            print(f"TRACKS UPDATED: {old_count} -> {new_count}")
+                    f"TRACK CREATED: Track {self.next_track_id} ({detection.get('card_type', 'Unknown')}) at frame {frame_number} position ({detection['center_x']:.0f},{detection['center_y']:.0f}) from {detection.get('method', 'DETECTION')}")
+                self.next_track_id += 1
+        else:
+            if unmatched_detections:
+                print(
+                    f"SUPPRESSING {len(unmatched_detections)} unmatched detections - not expecting new cards")
 
         return self.tracks
 
@@ -567,13 +605,20 @@ class TroopTracker:
             t.confirmed, -abs(frame_number - t.last_seen_frame)))
 
         for track in sorted_tracks:
-            if not track.predicted_position or track.predicted_position[0] is None:
+            # Use predicted position if available, otherwise use last known position
+            if track.predicted_position and track.predicted_position[0] is not None:
+                pred_x, pred_y = track.predicted_position
+            elif track.positions:
+                # Fallback to last known position for tracks without prediction (e.g., buildings being removed)
+                last_pos = track.positions[-1]
+                pred_x, pred_y = last_pos['center_x'], last_pos['center_y']
+                print(
+                    f"Track {track.track_id} using last position fallback for association: ({pred_x}, {pred_y})")
+            else:
                 continue
 
             best_detection = None
             best_distance = float('inf')
-
-            pred_x, pred_y = track.predicted_position
 
             # Find closest detection to predicted position
             for detection in unmatched_detections:

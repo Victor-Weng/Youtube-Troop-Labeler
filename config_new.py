@@ -6,10 +6,10 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 320  # 247.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 15  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 1  # s per frame delay
+DELAY = 0.1  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
@@ -25,7 +25,7 @@ COOLDOWN_FRAMES = 1
 
 
 # MOG2 settings
-MOG2_BIAS_BOOST = 2  # boost troops on our side by 2x
+MOG2_BIAS_BOOST = 1.5  # boost troops on our side by 2x
 HISTORY = 20
 VAR_THRESHOLD = 15
 LEARNING_RATE = 0.1  # how fast changes are adapted into model background
@@ -63,8 +63,8 @@ ARENA_SAMPLE_REGION = (437, 828, 50, 50)  # Center of 720x1280 frame (portrait)
 
 # Building removal parameters
 # Color difference threshold for background matching
-BUILDING_BG_COLOR_THRESHOLD = 30.0
-BUILDING_BG_MATCH_FRAMES = 2        # Frames of background matching before removal
+BUILDING_BG_COLOR_THRESHOLD = 10.0
+BUILDING_BG_MATCH_FRAMES = 3        # Frames of background matching before removal
 
 # Card hand detection coordinates (for 720x1280 video - portrait)
 # Ally hand positions (bottom of screen) - adjust these based on your video

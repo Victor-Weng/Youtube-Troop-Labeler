@@ -109,9 +109,19 @@ class TroopDetector:
                         break
                 if pos_score == 1.0:
                     break
+        # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
         if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
             if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
+                # print(f"TROOP {troop_info} GETTING BIASED")
                 size_score *= config.MOG2_BIAS_BOOST
+                pos_score *= config.MOG2_BIAS_BOOST
+        # for tower troops
+        elif (player == 'ally' and y < frame_height // 2) or (player == 'enemy' and y > frame_height // 2):
+            if any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
+                # print(f"TOWER TROOP {troop_info} GETTING BIASED")
+                size_score *= config.MOG2_BIAS_BOOST
+                pos_score *= config.MOG2_BIAS_BOOST
+
         score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score
         return score
 
@@ -254,15 +264,24 @@ class TroopDetector:
             print(f"DEBUG: Detecting objects for cards: {card_changes}")
 
         all_objects = mog2_objects + diff_objects
-        print(
-            f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
+        # print(
+        #    f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
 
         frame_height = frame.shape[0]
         # Loop over all troops in card_changes
         self.latest_detections = []
+        processed_troops = {}  # Track how many detections per troop type
+
         for entry in card_changes:
             troop = entry['troop']
             player = entry['player']
+            troop_key = f"{player}_{troop}"
+
+            # Limit to 1 detection per troop type per frame
+            if troop_key in processed_troops:
+                print(f"SKIPPING: Already processed {troop_key} this frame")
+                continue
+            processed_troops[troop_key] = True
             import json
             with open('troop_bias_config.json', 'r') as f:
                 troop_config = json.load(f)["troops"]
@@ -276,8 +295,8 @@ class TroopDetector:
                         obj['area'] = obj.get('w', 1) * obj.get('h', 1)
                     score = self.score_detection(
                         obj, troop_info, player, frame_height, pc, config)
-                    print(
-                        f"SCORE:{score} at ({obj['x'] + track_x},{obj['y'] + track_y})")
+                    # print(
+                    #    f"SCORE:{score} at ({obj['x'] + track_x},{obj['y'] + track_y})")
                     if score > best_score:
                         best_score = score
                         best_object = obj
@@ -506,11 +525,12 @@ class TroopDetector:
         skip = config.FRAME_SKIP
         for troop_name, info in troop_config.items():
             # frames = (frames/second * second)/skip
-            delay_config[troop_name] = np.ceil(
+            delay_config[troop_name] = np.floor(
                 (FPS * info.get("delay", 0))/skip)
 
         # Buffer new placements and decrement all delay counters every frame
         all_changes = []
+
         # Add new troops to buffer if not present, storing player info
         for troop in (ally_placed or []):
             if troop not in self.troop_delay_buffer:
@@ -529,8 +549,36 @@ class TroopDetector:
                 entry['delay'] -= 1
                 self.troop_delay_buffer[troop] = entry
             else:
-                all_changes.append({'troop': troop, 'player': entry['player']})
-                del self.troop_delay_buffer[troop]
+                # CRITICAL FIX: Check if this troop type already has active tracks before creating new detection
+                existing_tracks = [track for track in self.troop_tracker.tracks
+                                   if track.card_type.lower() == troop.lower() and track.player == entry['player']]
+
+                # Also check if any existing tracks are about to be removed (high bg_match_count for buildings)
+                stable_tracks = []
+                for track in existing_tracks:
+                    is_about_to_be_removed = False
+
+                    # Check if this track is close to being removed due to background matching
+                    # Close to removal threshold (3)
+                    if hasattr(track, 'bg_match_count') and track.bg_match_count >= 2:
+                        is_about_to_be_removed = True
+                        print(
+                            f"[DELAY] Track {track.track_id} ({track.card_type}) has bg_match_count={track.bg_match_count} - about to be removed")
+
+                    if not is_about_to_be_removed:
+                        stable_tracks.append(track)
+
+                if stable_tracks:
+                    print(
+                        f"[DELAY] SUPPRESSING {troop} ({entry['player']}) - {len(stable_tracks)} stable tracks already exist")
+                    # Remove from buffer without creating detection
+                    del self.troop_delay_buffer[troop]
+                else:
+                    all_changes.append(
+                        {'troop': troop, 'player': entry['player']})
+                    del self.troop_delay_buffer[troop]
+                    print(
+                        f"[DELAY] RELEASING {troop} ({entry['player']}) - no existing tracks")
         if all_changes:
             print("Ready for detection:", all_changes)
 
@@ -545,15 +593,12 @@ class TroopDetector:
         if hasattr(self, 'latest_detections') and self.latest_detections:
             detections_for_tracker.extend(self.latest_detections)
 
-        # Add continuous tracking detections for existing troops using optical flow
-        if self.previous_full_frame is not None:
-            tracking_detections = self.troop_tracker.track_existing_troops(
-                frame, self.previous_full_frame, frame_number)
-            detections_for_tracker.extend(tracking_detections)
+        # Determine if we're expecting new cards (i.e., if all_changes has entries)
+        expecting_new_cards = bool(all_changes)
 
-        # Update tracker with all detections (new + tracked) and current frame for movement analysis
+        # Update tracker with detections and let it handle optical flow tracking internally
         active_tracks = self.troop_tracker.update(
-            detections_for_tracker, frame_number, current_frame=frame)
+            detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame, expecting_new_cards=expecting_new_cards)
 
         # Store current frame for next iteration
         self.previous_full_frame = frame.copy()
