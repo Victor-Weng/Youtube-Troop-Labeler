@@ -6,10 +6,10 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 247.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 320  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 0.2  # s per frame delay
+DELAY = 1  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
@@ -37,7 +37,7 @@ MOG2_DEBUG_ALWAYS_RUN = True
 MAX_TRACKING_FRAMES = 60  # How long to track an object
 TRACKING_CONFIDENCE = 0.9  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
-TRACKING_REGION = (72, 301, 611, 767)  # (x, y, w, h) Arena region for tracking
+TRACKING_REGION = (33, 304, 650, 764)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
 
 # Output settings
@@ -102,3 +102,16 @@ ENEMY_CARD_BAR_HEIGHT = ENEMY_HAND_COORDS[0][3]
 
 ENEMY_REGION = (ENEMY_CARD_BAR_X, ENEMY_CARD_BAR_Y,
                 ENEMY_CARD_BAR_WIDTH, ENEMY_CARD_BAR_HEIGHT)
+
+# Game Activity Detection Settings
+# (x, y, w, h) Region where game timer is displayed
+# (x, y, w, h) Region where game timer is displayed
+# (x, y, w, h) Region where game timer is displayed
+# (x, y, w, h) Region where game timer is displayed
+ACTIVE_REGION = (29, 1181, 34, 43)
+# RGB color when timer is active (either black i.e. regular or orange i.e. overtime background)
+ACTIVE_COLORS = [(160.67, 46.60, 154.42), (160.67, 70.60, 154.42)]
+# Color difference threshold for detecting active based on elixer
+ACTIVE_COLOR_THRESHOLD = 35.0
+# Amount of frames in a row to detect if game is active or not.
+ACTIVE_STABLE = 3

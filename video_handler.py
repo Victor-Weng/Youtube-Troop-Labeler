@@ -20,6 +20,32 @@ class VideoHandler:
         self.frame_count = 0
         self.troop_tracker = TroopTracker()
 
+    def _draw_active_region(self, frame, is_game_active):
+        """Draw region visualization on the frame"""
+        x, y, w, h = config.ACTIVE_REGION
+
+        # Choose color based on game state
+        if is_game_active:
+            color = (0, 255, 0)  # Green for active
+            text = "ACTIVE"
+        else:
+            color = (0, 0, 255)  # Red for inactive
+            text = "INACTIVE"
+
+        # Draw timer region rectangle
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+
+        # Add label above the rectangle
+        cv2.putText(frame, text, (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+        # Draw crosshair in center of region for precise targeting
+        center_x, center_y = x + w//2, y + h//2
+        cv2.line(frame, (center_x - 5, center_y),
+                 (center_x + 5, center_y), color, 1)
+        cv2.line(frame, (center_x, center_y - 5),
+                 (center_x, center_y + 5), color, 1)
+
     def get_youtube_stream_url(self, youtube_url: str) -> Optional[str]:
         """Get direct stream URL from YouTube"""
 
@@ -105,10 +131,22 @@ class VideoHandler:
                     frame = cv2.resize(frame, (new_width, new_height))
 
                 try:
-                    # Run detection on frame - this handles ALL tracking updates AND drawing internally
-                    detected_objects, debug_frame, placement_events = detector.process_frame(
-                        frame, self.frame_count
-                    )
+                    # check to see if game is active first
+                    detector.detect_game_active(frame)
+
+                    if detector.is_game:
+                        # Run detection on frame - this handles ALL tracking updates AND drawing internally
+                        detected_objects, debug_frame, placement_events = detector.process_frame(
+                            frame, self.frame_count
+                        )
+                    else:
+                        debug_frame = frame.copy()
+                        cv2.putText(debug_frame, "Game Inactive", (10, 50),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                        detected_objects, placement_events = [], []
+
+                    # Add timer region visualization to debug_frame
+                    self._draw_active_region(debug_frame, detector.is_game)
 
                     # Display frame (debug_frame already has detection + tracking boxes drawn)
                     cv2.imshow('Card Detection', debug_frame)
@@ -131,7 +169,8 @@ class VideoHandler:
                     # Log progress every 100 frames
                     if self.frame_count % 100 == 0:
                         if total_frames > 0:
-                            progress = (self.frame_count / total_frames) * 100
+                            progress = (self.frame_count /
+                                        total_frames) * 100
                             self.logger.info(
                                 f"Processed frame {self.frame_count}/{total_frames} ({progress:.1f}%)")
                         else:

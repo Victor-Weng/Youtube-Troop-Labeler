@@ -13,6 +13,68 @@ load_dotenv()
 
 
 class TroopDetector:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.card_model = self.setup_card_roboflow()
+
+        # Initialize Actions for card capture
+        from Actions import Actions
+        self.actions = Actions()
+
+        # Card state
+        self.card_states = []
+
+        # Arena tracking
+        self.arena_background_color = None
+        self.previous_arena_frame = None
+        self.current_full_frame = None
+        self.previous_full_frame = None
+        self.bg_subtractor = None
+
+        # If a match is happening
+        self.is_game = False
+        self.is_game_counter = 0
+        self.is_not_game_counter = 0
+
+        # Troop tracking
+        self.troop_tracker = TroopTracker(
+            max_distance=80.0, max_missing_frames=600)
+
+    def detect_game_active(self, frame):
+        # extract region of interest
+        x, y, w, h = config.ACTIVE_REGION
+        # colors to match for
+        target_colors = config.ACTIVE_COLORS
+        # color threshold
+        threshold = config.ACTIVE_COLOR_THRESHOLD
+        # get area of interest
+        sample = frame[y:y+h, x:x+w]
+        # Get average color of the sample region
+        region_color = cv2.mean(sample)[:3]
+        # conditional logic to compare sample color mean to specified colors
+        for target_color in target_colors:
+            # L2, Euclidian distance by default. L1 is Manhatten (|| + ||) Linf is max(|| + || +..)
+            distance = np.linalg.norm(
+                np.array(region_color) - np.array(target_color))
+            if distance < threshold:
+                self.is_game_counter += 1
+                if self.is_game_counter >= config.ACTIVE_STABLE:
+                    # print(f"Active Counter: {self.is_game_counter}")
+                    self.is_not_game_counter = 0
+                    self.is_game = True
+                # self.logger.info(
+                #    f"Game is active, distance: {distance}, color: {region_color}")
+                return True  # to prevent further detections
+        else:
+            # self.logger.info(
+            #    f"Game is inactive, distance: {distance}, color: {region_color}")
+            self.is_not_game_counter += 1
+            if self.is_not_game_counter >= config.ACTIVE_STABLE:
+                # print(f"Inactive Counter: {self.is_not_game_counter}")
+                self.is_game_counter = 0
+                self.is_game = False
+            return False
+
     def score_detection(self, obj, troop_info, player, frame_height, pc, config):
         area = obj['area']
         w, h = obj['w'], obj['h']
@@ -52,29 +114,6 @@ class TroopDetector:
                 size_score *= config.MOG2_BIAS_BOOST
         score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score
         return score
-    """Simplified detector for card detection only"""
-
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.card_model = self.setup_card_roboflow()
-
-        # Initialize Actions for card capture
-        from Actions import Actions
-        self.actions = Actions()
-
-        # Card state
-        self.card_states = []
-
-        # Arena tracking
-        self.arena_background_color = None
-        self.previous_arena_frame = None
-        self.current_full_frame = None
-        self.previous_full_frame = None
-        self.bg_subtractor = None
-
-        # Troop tracking
-        self.troop_tracker = TroopTracker(
-            max_distance=80.0, max_missing_frames=600)
 
     def setup_card_roboflow(self):
         api_key = os.getenv('ROBOFLOW_API_KEY')
