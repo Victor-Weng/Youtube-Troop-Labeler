@@ -16,6 +16,7 @@ class TroopDetector:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.card_model = self.setup_card_roboflow()
+        self.troop_model = self.setup_troop_roboflow()
 
         # Initialize Actions for card capture
         from Actions import Actions
@@ -135,6 +136,70 @@ class TroopDetector:
             api_url="http://localhost:9001",
             api_key=api_key
         )
+
+    def setup_troop_roboflow(self):
+        """Setup troop verification model"""
+        api_key = os.getenv('ROBOFLOW_API_KEY')
+        if not api_key:
+            raise ValueError(
+                "ROBOFLOW_API_KEY environment variable is not set. Please check your .env file.")
+
+        return InferenceHTTPClient(
+            api_url="http://localhost:9001",
+            api_key=api_key
+        )
+
+    def verify_troop_detection(self, frame: np.ndarray, obj: dict, expected_troop: str) -> float:
+        """
+        Verify if detected object matches expected troop using troop model
+        Returns confidence score (0-1) or 0 if no match
+        """
+        if not self.troop_model:
+            raise ValueError("Error: No troop_model")
+
+        try:
+            # Extract ROI
+            x, y, w, h = obj['x'], obj['y'], obj['w'], obj['h']
+            roi = frame[y:y+h, x:x+w]
+
+            if roi.size == 0:
+                return 0.0
+
+            # Run inference
+            TROOP_DETECTION = os.getenv('TROOP_DETECTION')
+            # Run inference on the ROI
+            results = self.troop_model.infer(
+                roi,
+                model_id=TROOP_DETECTION
+            )
+            print(f"inference results: {results}")
+            # Parse results using same pattern as detect_hand_cards
+            if isinstance(results, dict) and results:
+                confidence = results.get('confidence', 0.0)
+                predictions = results.get('predictions', [])
+
+                self.logger.info(
+                    f"confidence: {confidence} and predictions: {predictions}")
+
+                # If no predictions or empty, return 0
+                if not predictions or len(predictions) == 0:
+                    self.logger.info(f"no predictions")
+                    return 0.0
+
+                # Find expected troop in predictions
+                for prediction in predictions:
+                    if prediction.get('class', '').lower() == expected_troop.lower():
+                        # Return confidence if above threshold
+                        if confidence > 0.8:
+                            return confidence
+                        else:
+                            return 0.0
+
+            return 0.0
+
+        except Exception as e:
+            print(f"Troop verification error: {e}")
+            return 0.0
 
     def update_card_states(self, frame, ally_cards, enemy_cards):
         # update card states
@@ -288,18 +353,43 @@ class TroopDetector:
             troop_info = troop_config.get(troop, None)
             best_object = None
             best_score = -float('inf')
+
             if troop_info:
+                # Score all objects first
+                scored_objects = []
                 for obj in all_objects:
-                    # Area fix: ensure 'area' key exists
                     if 'area' not in obj:
                         obj['area'] = obj.get('w', 1) * obj.get('h', 1)
                     score = self.score_detection(
                         obj, troop_info, player, frame_height, pc, config)
-                    # print(
-                    #    f"SCORE:{score} at ({obj['x'] + track_x},{obj['y'] + track_y})")
-                    if score > best_score:
-                        best_score = score
-                        best_object = obj
+                    scored_objects.append((obj, score))
+
+                # Sort by score (highest first)
+                scored_objects.sort(key=lambda x: x[1], reverse=True)
+
+                if scored_objects:
+                    # Check if top candidates have similar scores (within threshold)
+                    top_score = scored_objects[0][1]
+                    close_candidates = [obj for obj, score in scored_objects[:config.TROOP_VERIFICATION_MAX_ATTEMPTS]
+                                        if top_score - score <= config.TROOP_VERIFICATION_SCORE_THRESHOLD]
+
+                    # Use troop verification if multiple close candidates
+                    if len(close_candidates) > 1:
+                        for candidate in close_candidates:
+                            verification_confidence = self.verify_troop_detection(
+                                frame, candidate, troop)
+                            self.logger.info(
+                                f"best verification confidence is: {verification_confidence}")
+                            if verification_confidence >= config.TROOP_VERIFICATION_MIN_CONFIDENCE:
+                                best_object = candidate
+                                best_score = verification_confidence
+                                break
+                    else:
+                        self.logger.info(f"no close candidates found")
+
+                    # Fallback to highest scoring object if no verification match
+                    if best_object is None:
+                        best_object, best_score = scored_objects[0]
             if best_object:
                 abs_x = track_x + best_object['x']
                 abs_y = track_y + best_object['y']

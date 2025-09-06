@@ -316,7 +316,7 @@ class TroopTrack:
             print(f"Background analysis error for track {self.track_id}: {e}")
             return {'matches_background': False, 'color_diff': float('inf')}
 
-    def is_stale(self, current_frame: int, max_missing_frames: int = 0, troop_config: Dict = None, frame_data: np.ndarray = None, arena_bg_color: np.ndarray = None) -> bool:
+    def is_stale(self, current_frame: int, max_missing_frames: int = 2, troop_config: Dict = None, frame_data: np.ndarray = None, arena_bg_color: np.ndarray = None) -> bool:
         """Check if track should be removed due to being missing too long, exceeding duration, or lack of content"""
         # Check if missing too long (real detections only)
         missing_frames = current_frame - self.last_seen_frame
@@ -545,13 +545,13 @@ class TroopTracker:
         if expecting_new_cards:
             # Use both new detections and optical flow tracking
             all_detections = detections + tracking_detections
-            print(
-                f"EXPECTING NEW CARDS: Using {len(detections)} new + {len(tracking_detections)} tracking = {len(all_detections)} total detections")
+            # print(
+            #    f"EXPECTING NEW CARDS: Using {len(detections)} new + {len(tracking_detections)} tracking = {len(all_detections)} total detections")
         else:
             # Only use optical flow tracking, ignore new detections
             all_detections = tracking_detections
-            print(
-                f"NOT EXPECTING CARDS: Ignoring {len(detections)} new detections, using only {len(tracking_detections)} tracking detections")
+            # print(
+            #    f"NOT EXPECTING CARDS: Ignoring {len(detections)} new detections, using only {len(tracking_detections)} tracking detections")
 
         # Convert detections to standardized format
         standardized_detections = []

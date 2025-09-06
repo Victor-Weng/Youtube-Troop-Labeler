@@ -9,7 +9,7 @@ RESIZE_FACTOR = 1.0  # Keep original size
 START_TIME_SECONDS = 15  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 0.1  # s per frame delay
+DELAY = 1  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
@@ -39,6 +39,14 @@ TRACKING_CONFIDENCE = 0.9  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
 TRACKING_REGION = (33, 304, 650, 764)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
+
+# Troop verification model settings
+# Use verification when candidate scores are within this threshold
+TROOP_VERIFICATION_SCORE_THRESHOLD = 0.6
+# Maximum candidates to verify before defaulting to highest score
+TROOP_VERIFICATION_MAX_ATTEMPTS = 3
+# Minimum confidence from troop model to accept match
+TROOP_VERIFICATION_MIN_CONFIDENCE = 0.3
 
 # Output settings
 OUTPUT_DIR = './output_dataset/'
