@@ -6,26 +6,34 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 15  # 247.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 6  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
 DELAY = 1  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
-MAX_OBJECT_SIZE = 5000  # Smaller maximum (focus on troop-sized objects)
+MAX_OBJECT_SIZE = 10000  # Smaller maximum (focus on troop-sized objects)
 
 # Minimum detection size expansion
 MIN_DETECTION_WIDTH = 75   # Minimum width for detection boxes
 MIN_DETECTION_HEIGHT = 100  # Minimum height for detection boxes
 
+# Detection confidence
+DETECTION_CONFIDENCE = 0.5 # lower to allow for grayed out cards
+
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
-THRESHOLD = 9  # threshold for color difference to run card detection model
+THRESHOLD = 5  # threshold for color difference to run card detection model
 # amount of frames after a detection to wait before detecting the next change
 COOLDOWN_FRAMES = 1
 
+# Scoring boost
+MOG2_BIAS_BOOST = 1.5  # boost troops on our side by 2x
+# still used incase golden
+GOLDEN = [253, 255, 69]
+ALLY_BLUE = [51, 182, 229] # ally blue to look out for
+ENEMY_RED = [228, 21, 76] # enemy red to look out for
 
 # MOG2 settings
-MOG2_BIAS_BOOST = 1.5  # boost troops on our side by 2x
 HISTORY = 20
 VAR_THRESHOLD = 15
 LEARNING_RATE = 0.1  # how fast changes are adapted into model background
@@ -37,8 +45,11 @@ MOG2_DEBUG_ALWAYS_RUN = True
 MAX_TRACKING_FRAMES = 60  # How long to track an object
 TRACKING_CONFIDENCE = 0.9  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
-TRACKING_REGION = (33, 304, 650, 764)  # (x, y, w, h) Arena region for tracking
+MAX_DISTANCE = 150
+TRACKING_REGION = (33, 304, 646, 747)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
+MIN_ACTIVITY_FRAMES = 1 # Remove tracks after minimal movement in these frames
+MIN_MOVEMENT = 1.2 # Less than 1,0 pixels per frame on average
 
 # Troop verification model settings
 # Use verification when candidate scores are within this threshold
@@ -56,9 +67,9 @@ SAVE_IMAGES = False  # Set to False to disable image saving during testing
 
 # YouTube URLs to process (or set TEST_VIDEO_PATH for local file)
 YOUTUBE_URLS = [
-    "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale"
-
+    "https://www.youtube.com/watch?v=fSRN4bQcoDo&ab_channel=TVroyale"
 ]
+# "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale"
 # "https://www.youtube.com/watch?v=Px0O-NFvfx8&ab_channel=Ryley-ClashRoyale",
 # "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale",
 
@@ -77,18 +88,18 @@ BUILDING_BG_MATCH_FRAMES = 3        # Frames of background matching before remov
 # Card hand detection coordinates (for 720x1280 video - portrait)
 # Ally hand positions (bottom of screen) - adjust these based on your video
 ALLY_HAND_COORDS = [
-    (99, 1098, 85, 87),   # Card 1
-    (190, 1094, 86, 89),   # Card 2
-    (285, 1097, 85, 88),   # Card 3
-    (383, 1099, 81, 89),   # Card 4
+    (97, 1116, 85, 86),   # Card 1
+    (192, 1119, 85, 83),   # Card 2
+    (286, 1119, 88, 84),   # Card 3
+    (383, 1119, 79, 85),   # Card 4
 ]
 
 # Enemy hand positions (top of screen) - adjust these based on your video
 ENEMY_HAND_COORDS = [
-    (94, 120, 91, 86),    # Card 1
-    (192, 122, 81, 84),    # Card 2
-    (288, 119, 82, 90),    # Card 3
-    (386, 120, 78, 89),    # Card 4
+    (95, 126, 88, 88),    # Card 1
+    (191, 129, 83, 86),    # Card 2
+    (288, 130, 87, 88),    # Card 3
+    (383, 131, 83, 84),    # Card 4
 ]
 
 ALLY_CARD_BAR_X = ALLY_HAND_COORDS[0][0]
@@ -116,7 +127,7 @@ ENEMY_REGION = (ENEMY_CARD_BAR_X, ENEMY_CARD_BAR_Y,
 # (x, y, w, h) Region where game timer is displayed
 # (x, y, w, h) Region where game timer is displayed
 # (x, y, w, h) Region where game timer is displayed
-ACTIVE_REGION = (29, 1181, 34, 43)
+ACTIVE_REGION = (26, 1199, 40, 45)  # (x, y, w, h) Region where game timer is displayed
 # RGB color when timer is active (either black i.e. regular or orange i.e. overtime background)
 ACTIVE_COLORS = [(160.67, 46.60, 154.42), (160.67, 70.60, 154.42)]
 # Color difference threshold for detecting active based on elixer

@@ -5,769 +5,880 @@
             "aspect_ratio": 1.6,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [125, 70, 160]
         },
         "archers": {
             "size_rank": 2,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [228, 89, 163]
         },
         "arrows": {
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 2.0
+            "duration": 2.0,
+            "average_color": [170, 130, 90]
         },
         "baby dragon": {
             "size_rank": 4,
             "aspect_ratio": 0.9,
             "biased_positions": [],
             "delay": 0.1,
-          "zap": {
-            "size_rank": 2,
-            "aspect_ratio": 1.0,
-            "biased_positions": [],
-            "delay": 0.1,
-            "duration": 1.0
-        },   "duration": null
+            "zap": {
+                "size_rank": 2,
+                "aspect_ratio": 1.0,
+                "biased_positions": [],
+                "delay": 0.1,
+                "duration": 1.0,
+                "average_color": [180, 230, 255]
+            },
+            "duration": null,
+            "average_color": [120, 200, 90]
         },
         "balloon": {
             "size_rank": 8,
             "aspect_ratio": 0.8,
             "biased_positions": ["CORNER", "BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [null]
         },
         "bandit": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
             "biased_positions": ["BRIDGE", "BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [50, 55, 65]
         },
         "barbarian barrel": {
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": 2.0
+            "duration": 2.0,
+            "average_color": [139, 94, 60]
         },
         "barbarian hut": {
             "size_rank": 6,
             "aspect_ratio": 1.2,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 20.0
+            "duration": 20.0,
+            "average_color": [200, 165, 60]
         },
         "barbarians": {
             "size_rank": 7,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [230, 195, 60]
         },
         "bats": {
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [108, 84, 162]
         },
         "battle healer": {
             "size_rank": 4,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [136, 190, 230]
         },
         "battle ram": {
             "size_rank": 4,
             "aspect_ratio": 1.6,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [120, 90, 60]
         },
         "bomb tower": {
             "size_rank": 5,
             "aspect_ratio": 1.4,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 15
+            "duration": 15,
+            "average_color": [100, 100, 105]
         },
         "bomber": {
             "size_rank": 2,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [null]
         },
         "bowler": {
             "size_rank": 6,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [152, 102, 190]
         },
         "cannon": {
             "size_rank": 4,
             "aspect_ratio": 1.3,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 14.0
+            "duration": 14.0,
+            "average_color": [130, 130, 130]
         },
         "cannon cart": {
             "size_rank": 5,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [120, 100, 90]
         },
         "clone": {
             "size_rank": 2,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 1.0
+            "duration": 1.0,
+            "average_color": [140, 220, 255]
         },
         "dark prince": {
             "size_rank": 5,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 70, 80]
         },
         "dart goblin": {
             "size_rank": 2,
             "aspect_ratio": 1.5,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [96, 168, 70]
         },
         "earthquake": {
             "size_rank": 6,
             "aspect_ratio": 1.0,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 4.0
+            "duration": 4.0,
+            "average_color": [160, 120, 80]
         },
         "electro dragon": {
             "size_rank": 5,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [60, 200, 220]
         },
         "electro giant": {
             "size_rank": 10,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [130, 140, 155]
         },
         "electro spirit": {
             "size_rank": 1,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 6.5
+            "duration": 1.3,
+            "average_color": [140, 230, 255]
         },
         "electro wizard": {
             "size_rank": 3,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 120, 200]
         },
         "elite barbarians": {
             "size_rank": 5,
             "aspect_ratio": 0.8,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 170, 120]
         },
         "elixir collector": {
             "size_rank": 4,
             "aspect_ratio": 1.0,
             "biased_positions": ["CORNER"],
             "delay": 0.1,
-            "duration": 40.0
+            "duration": 40.0,
+            "average_color": [210, 70, 200]
         },
         "elixir golem": {
             "size_rank": 7,
             "aspect_ratio": 1.0,
             "biased_positions": ["KING_TOWER", "BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [180, 70, 210]
         },
         "executioner": {
             "size_rank": 5,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [40, 100, 130]
         },
         "fire spirit": {
             "size_rank": 1,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 6.5
+            "duration": 1.3,
+            "average_color": [255, 140, 40]
         },
         "fireball": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 1.6,
-            "duration": 1.6
+            "duration": 1.6,
+            "average_color": [230, 120, 20]
         },
         "firecracker": {
             "size_rank": 2,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [150, 110, 80]
         },
         "fisherman": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 150, 200]
         },
         "flying machine": {
             "size_rank": 3,
             "aspect_ratio": 0.8,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [150, 110, 80]
         },
         "freeze": {
             "size_rank": 6,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 2.0
+            "duration": 2.0,
+            "average_color": [170, 220, 255]
         },
         "furnace": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 20.0
+            "duration": 20.0,
+            "average_color": [90, 90, 95]
         },
         "giant": {
             "size_rank": 9,
             "aspect_ratio": 0.9,
             "biased_positions": ["BRIDGE", "KING_TOWER"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [175, 110, 70]
         },
         "giant skeleton": {
             "size_rank": 8,
             "aspect_ratio": 1.0,
             "biased_positions": ["BRIDGE", "KING_TOWER"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [140, 140, 140]
         },
         "giant snowball": {
             "size_rank": 4,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 0.5
+            "duration": 0.5,
+            "average_color": [220, 240, 255]
         },
         "goblin barrel": {
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": ["TOWER"],
             "delay": 3.2,
-            "duration": null
+            "duration": null,
+            "average_color": [140, 95, 60]
         },
         "goblin cage": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 20.0
+            "duration": 20.0,
+            "average_color": [140, 140, 140]
         },
         "goblin drill": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": ["TOWER"],
             "delay": 3.6,
-            "duration": 8.0
+            "duration": 8.0,
+            "average_color": [190, 60, 50]
         },
         "goblin gang": {
             "size_rank": 5,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [98, 172, 72]
         },
         "goblin giant": {
             "size_rank": 9,
             "aspect_ratio": 1.0,
             "biased_positions": ["KING_TOWER", "BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [110, 180, 70]
         },
         "goblin hut": {
             "size_rank": 5,
             "aspect_ratio": 1.1,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 20.0
+            "duration": 20.0,
+            "average_color": [200, 170, 70]
         },
         "goblins": {
             "size_rank": 2,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [98, 172, 72]
         },
         "golden knight": {
             "size_rank": 4,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [220, 190, 80]
         },
         "golem": {
             "size_rank": 10,
             "aspect_ratio": 0.85,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [110, 110, 120]
         },
         "graveyard": {
             "size_rank": 7,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 10.0
+            "duration": 10.0,
+            "average_color": [150, 170, 190]
         },
         "guards": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [120, 160, 100]
         },
         "heal spirit": {
             "size_rank": 1,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 6.5
+            "duration": 1.3,
+            "average_color": [255, 200, 60]
         },
         "hog rider": {
             "size_rank": 4,
             "aspect_ratio": 1.2,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [140, 95, 70]
         },
         "hunter": {
             "size_rank": 4,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 130, 200]
         },
         "ice golem": {
             "size_rank": 4,
             "aspect_ratio": 0.95,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [170, 220, 230]
         },
         "ice spirit": {
             "size_rank": 1,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 6.5
+            "duration": 1.3,
+            "average_color": [170, 230, 255]
         },
         "ice wizard": {
             "size_rank": 3,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [120, 170, 220]
         },
         "inferno dragon": {
             "size_rank": 4,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [110, 170, 90]
         },
         "inferno tower": {
             "size_rank": 7,
             "aspect_ratio": 2.2,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [90, 90, 95]
         },
         "knight": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [150, 150, 160]
         },
         "lava hound": {
             "size_rank": 8,
             "aspect_ratio": 0.9,
             "biased_positions": ["CORNER"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [90, 70, 50]
         },
         "lightning": {
             "size_rank": 7,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 1.5
+            "duration": 1.5,
+            "average_color": [200, 230, 255]
         },
         "little prince": {
             "size_rank": 3,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [90, 140, 210]
         },
         "lumberjack": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [130, 100, 80]
         },
         "magic archer": {
             "size_rank": 3,
             "aspect_ratio": 1.6,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 130, 180]
         },
         "mega knight": {
             "size_rank": 8,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.5,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 70, 80]
         },
         "mega minion": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [60, 110, 190]
         },
         "mighty miner": {
             "size_rank": 4,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [120, 100, 90]
         },
         "miner": {
             "size_rank": 2,
             "aspect_ratio": 1.4,
             "biased_positions": ["TOWER"],
-            "delay": 1.6,
-            "duration": null
+            "delay": 2.0,
+            "duration": null,
+            "average_color": [100, 100, 110]
         },
         "mini pekka": {
             "size_rank": 4,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [60, 110, 190]
         },
         "minion horde": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [60, 110, 190]
         },
         "minions": {
             "size_rank": 2,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [60, 110, 190]
         },
         "monk": {
             "size_rank": 4,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 170, 120]
         },
         "mortar": {
             "size_rank": 6,
             "aspect_ratio": 0.7,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [150, 120, 90]
         },
         "mother witch": {
             "size_rank": 3,
             "aspect_ratio": 1.3,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [140, 90, 170]
         },
         "musketeer": {
             "size_rank": 3,
             "aspect_ratio": 1.5,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 130, 200]
         },
         "night witch": {
             "size_rank": 3,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [110, 70, 150]
         },
         "pekka": {
             "size_rank": 7,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [60, 70, 120]
         },
         "phoenix": {
             "size_rank": 4,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [240, 150, 40]
         },
         "poison": {
             "size_rank": 7,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 10.0
+            "duration": 10.0,
+            "average_color": [170, 110, 50]
         },
         "prince": {
             "size_rank": 5,
             "aspect_ratio": 1.5,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 180, 80]
         },
         "princess": {
             "size_rank": 2,
             "aspect_ratio": 1.6,
-            "biased_positions": ["BRIDGE","KING_TOWER"],
+            "biased_positions": ["BRIDGE", "KING_TOWER"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [80, 150, 100]
         },
         "rage": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.3,
-            "duration": 4.5
+            "duration": 4.5,
+            "average_color": [220, 80, 180]
         },
         "ram rider": {
             "size_rank": 5,
             "aspect_ratio": 1.4,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [90, 70, 60]
         },
         "rascals": {
             "size_rank": 6,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [200, 120, 190]
         },
         "rocket": {
             "size_rank": 5,
             "aspect_ratio": 1.0,
             "biased_positions": ["TOWER"],
             "delay": 3,
-            "duration": 2.0
+            "duration": 2.0,
+            "average_color": [130, 130, 140]
         },
         "royal delivery": {
             "size_rank": 4,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 1.6,
-            "duration": 1.6
+            "duration": 1.6,
+            "average_color": [150, 110, 80]
         },
         "royal ghost": {
             "size_rank": 4,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [170, 220, 230]
         },
         "royal hogs": {
             "size_rank": 6,
             "aspect_ratio": 0.5,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [230, 170, 170]
         },
         "royal recruits": {
             "size_rank": 10,
             "aspect_ratio": 0.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 180, 80]
         },
         "royale giant": {
             "size_rank": 9,
             "aspect_ratio": 0.95,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [170, 120, 70]
         },
         "skeleton army": {
             "size_rank": 8,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 200, 180]
         },
         "skeleton barrel": {
             "size_rank": 3,
             "aspect_ratio": 0.9,
             "biased_positions": [],
-            "delay": 0.1,
-            "duration": null
+            "delay": 0.5,
+            "duration": null,
+            "average_color": [null]
         },
         "skeleton dragons": {
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [110, 170, 90]
         },
         "skeleton king": {
             "size_rank": 5,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [80, 90, 130]
         },
         "skeletons": {
             "size_rank": 1,
             "aspect_ratio": 1.1,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 200, 180]
         },
         "sparky": {
             "size_rank": 7,
             "aspect_ratio": 0.9,
             "biased_positions": ["KING_TOWER"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [220, 190, 80]
         },
         "spear goblins": {
             "size_rank": 2,
             "aspect_ratio": 1.2,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [98, 172, 72]
         },
         "tesla": {
             "size_rank": 5,
             "aspect_ratio": 1.6,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 15
+            "duration": 15,
+            "average_color": [140, 90, 170]
         },
         "the log": {
             "size_rank": 3,
             "aspect_ratio": 0.3,
             "biased_positions": ["BRIDGE", "TOWER"],
             "delay": 0.1,
-            "duration": 3.0
+            "duration": 1.2,
+            "average_color": [120, 90, 60]
         },
         "three musketeers": {
             "size_rank": 5,
             "aspect_ratio": 1.5,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [70, 130, 200]
         },
         "tombstone": {
             "size_rank": 4,
             "aspect_ratio": 1.5,
             "biased_positions": ["BUILDING"],
             "delay": 0.1,
-            "duration": 20.0
+            "duration": 20.0,
+            "average_color": [130, 130, 140]
         },
         "tornado": {
             "size_rank": 6,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 2.5
+            "duration": 2.5,
+            "average_color": [130, 130, 130]
         },
         "valkyrie": {
             "size_rank": 4,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [230, 120, 60]
         },
         "wall breakers": {
             "size_rank": 2,
             "aspect_ratio": 0.5,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [100, 100, 100]
         },
         "witch": {
             "size_rank": 4,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [140, 90, 170]
         },
         "wizard": {
             "size_rank": 3,
             "aspect_ratio": 1.4,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [null]
         },
         "x-bow": {
             "size_rank": 7,
             "aspect_ratio": 1,
             "biased_positions": ["BRIDGE"],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [150, 120, 90]
         },
         "zap": {
             "size_rank": 2,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": 1
+            "duration": 1,
+            "average_color": [180, 230, 255]
         },
         "zappies": {
             "size_rank": 3,
             "aspect_ratio": 1.0,
             "biased_positions": [],
             "delay": 0.1,
-            "duration": null
+            "duration": null,
+            "average_color": [210, 180, 80]
         }
     }
 }

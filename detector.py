@@ -24,6 +24,8 @@ class TroopDetector:
 
         # Card state
         self.card_states = []
+        self.ally_unknown_streak = [0]*4 # amount of unknown detections. 1 = maybe misread from animation 1+ = continue
+        self.enemy_unknown_streak = [0]*4
 
         # Arena tracking
         self.arena_background_color = None
@@ -76,7 +78,7 @@ class TroopDetector:
                 self.is_game = False
             return False
 
-    def score_detection(self, obj, troop_info, player, frame_height, pc, config):
+    def score_detection(self, obj, troop_info, player, frame: np.ndarray, frame_height, pc, config):
         area = obj['area']
         w, h = obj['w'], obj['h']
         if 'abs_x' in obj and 'abs_y' in obj:
@@ -110,6 +112,58 @@ class TroopDetector:
                         break
                 if pos_score == 1.0:
                     break
+        
+        # Code for getting color score that uses: average color of the region
+        # and compares against: troop_info.get('average_color') - self.arena_background_color + 0.3*config.ALLY_BLUE (if ally) or + 0.3*config.ENEMY_RED (if enemy)
+        abs_x = track_x + obj['x']
+        abs_y = track_y + obj['y']
+        region_crop = frame[abs_y:abs_y+h, abs_x:abs_x+w]
+        avg_color = np.mean(region_crop, axis=(0,1))
+        side_color = np.array([0,0,0])
+        if(player=='ally'):
+            side_color = np.array(config.ALLY_BLUE)
+        elif(player=='enemy'):
+            side_color = np.array(config.ENEMY_RED)
+        
+        if len(np.array(troop_info.get('average_color'))) == 3:
+            w1 = 1
+            w2 = 0.5
+            w3 = 0.5
+            # [::-1] reverses the order of the array because CV2 uses BGR isntead of RGB
+            target_color = (
+                w1 * np.array(troop_info.get('average_color'))[::-1] + 
+                w2 * np.array(self.arena_background_color) + 
+                w3 * np.array(side_color)
+            ) / (w1 + w2 + w3)
+        else:
+            print("Predominantly side-dependent color, changed color scoring")
+            w1 = 0.5
+            w2 = 0.8
+            target_color = (
+                w1 * np.array(self.arena_background_color) + 
+                w2 * np.array(side_color)
+            ) / (w1 + w2)
+
+        max_color_distance = np.linalg.norm([255, 255, 255])/2 
+        color_distance_reg = np.linalg.norm(np.array(target_color) - np.array(avg_color))
+        color_score_reg = 1.0 - min(color_distance_reg / max_color_distance, 1.0)
+
+        # Incase golden color is being considered
+        w1 = 1
+        w2 = 0.7
+        target_golden_color = (
+                w1 * np.array(config.GOLDEN)[::-1] + 
+                w2 * np.array(self.arena_background_color)
+            ) / (w1 + w2)
+        
+        color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
+        color_score_golden = 1.0 - min(color_distance_golden / max_color_distance, 1.0)
+
+        # take best of regular and golden
+        color_score = max(color_score_reg, color_score_golden)
+
+        print(f"color score for {abs_x},{abs_y} is {color_score}")
+
         # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
         if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
             if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
@@ -123,7 +177,7 @@ class TroopDetector:
                 size_score *= config.MOG2_BIAS_BOOST
                 pos_score *= config.MOG2_BIAS_BOOST
 
-        score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score
+        score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score + 0.5*color_score
         return score
 
     def setup_card_roboflow(self):
@@ -245,7 +299,6 @@ class TroopDetector:
     def setup_arena_tracking(self, frame):
         """Initialize arena background color from the first frame"""
         import config_new as config
-
         x, y, w, h = config.ARENA_SAMPLE_REGION
         arena_sample = frame[y:y+h, x:x+w]
         # Get average color of the sample region
@@ -361,7 +414,7 @@ class TroopDetector:
                     if 'area' not in obj:
                         obj['area'] = obj.get('w', 1) * obj.get('h', 1)
                     score = self.score_detection(
-                        obj, troop_info, player, frame_height, pc, config)
+                        obj, troop_info, player, frame, frame_height, pc, config)
                     scored_objects.append((obj, score))
 
                 # Sort by score (highest first)
@@ -373,19 +426,20 @@ class TroopDetector:
                     close_candidates = [obj for obj, score in scored_objects[:config.TROOP_VERIFICATION_MAX_ATTEMPTS]
                                         if top_score - score <= config.TROOP_VERIFICATION_SCORE_THRESHOLD]
 
-                    # Use troop verification if multiple close candidates
-                    if len(close_candidates) > 1:
-                        for candidate in close_candidates:
-                            verification_confidence = self.verify_troop_detection(
-                                frame, candidate, troop)
-                            self.logger.info(
-                                f"best verification confidence is: {verification_confidence}")
-                            if verification_confidence >= config.TROOP_VERIFICATION_MIN_CONFIDENCE:
-                                best_object = candidate
-                                best_score = verification_confidence
-                                break
-                    else:
-                        self.logger.info(f"no close candidates found")
+                    # UNCOMMENT LATER IF EXTERNAL MODEL WORKS.
+                    # # Use troop verification if multiple close candidates
+                    # if len(close_candidates) > 1:
+                    #     for candidate in close_candidates:
+                    #         verification_confidence = self.verify_troop_detection(
+                    #             frame, candidate, troop)
+                    #         self.logger.info(
+                    #             f"best verification confidence is: {verification_confidence}")
+                    #         if verification_confidence >= config.TROOP_VERIFICATION_MIN_CONFIDENCE:
+                    #             best_object = candidate
+                    #             best_score = verification_confidence
+                    #             break
+                    # else:
+                    #     self.logger.info(f"no close candidates found")
 
                     # Fallback to highest scoring object if no verification match
                     if best_object is None:
@@ -520,7 +574,7 @@ class TroopDetector:
                     card_path,
                     model_id=CARD_DETECTION
                 )
-                # print("Card detection raw results:", results)  # Debug print
+                print("Card detection raw results:", results.get('top'))  # Debug print
                 # Fix: parse nested structure
                 if isinstance(results, dict) and results:
                     confidence = results.get('confidence', 0.0)
@@ -530,7 +584,7 @@ class TroopDetector:
                     if not predictions or len(predictions) == 0:
                         cards.append("Unknown")
                     # If low confidence (uncertain), treat as unknown for now
-                    elif confidence <= 0.8:
+                    elif confidence <= config.DETECTION_CONFIDENCE:
                         cards.append("Unknown")
                     # High confidence, use the top prediction
                     else:
@@ -579,8 +633,8 @@ class TroopDetector:
 
     def process_frame(self, frame: np.ndarray, frame_number: int) -> Tuple[List, np.ndarray, List]:
         """Process single frame and detect cards"""
-        # dynamic call of card detection if pixel difference noted.
-        if self.should_run_card_detection(frame, which="ally"):
+        # dynamic call of card detection if pixel difference noted or if there was a bad read last time and need to double check.
+        if self.should_run_card_detection(frame, which="ally") or 1 in self.ally_unknown_streak:
             print("Detecting hand cards ally")
             ally_cards = self.detect_hand_cards(frame, "ally")
         elif self.card_states:
@@ -588,13 +642,31 @@ class TroopDetector:
         else:
             ally_cards = []
 
-        if self.should_run_card_detection(frame, which="enemy"):
+        if self.should_run_card_detection(frame, which="enemy") or 1 in self.enemy_unknown_streak:
             print("Detecting hand cards enemy")
             enemy_cards = self.detect_hand_cards(frame, "enemy")
         elif self.card_states:
             enemy_cards = self.card_states[-1]["enemy"]
         else:
             enemy_cards = []
+
+        # Check if any of the cards are "None": do not update card_states because likely card overlapping another
+        # Only skip if this is the first time (incase card REALLY is unknown), or else reset counter
+        for idx, card in enumerate(ally_cards):
+            if card == "Unknown" and self.ally_unknown_streak[idx] == 0:
+                self.logger.info(f"Ally detection on {idx}, 0 indexed, returned an empty detection, skipping due to bad read.")
+                ally_cards = self.card_states[-1]["ally"]
+                self.ally_unknown_streak[idx] += 1
+            elif card != "Unknown":
+                self.ally_unknown_streak[idx] = 0 # reset for this card once a known card is found
+
+        for idx, card in enumerate(enemy_cards):
+            if card == "Unknown" and self.enemy_unknown_streak[idx] == 0:
+                self.logger.info(f"Enemy detection on {idx}, 0 indexed, returned an empty detection, skipping due to bad read.")
+                enemy_cards = self.card_states[-1]["enemy"]
+                self.enemy_unknown_streak[idx] += 1
+            elif card != "Unknown":
+                self.enemy_unknown_streak[idx] = 0 # reset for this card once a known card is found
 
         # Update card states
         self.update_card_states(frame_number, ally_cards, enemy_cards)
@@ -621,21 +693,46 @@ class TroopDetector:
         # Buffer new placements and decrement all delay counters every frame
         all_changes = []
 
-        # Add new troops to buffer if not present, storing player info
+        # Add new troops to buffer if not present, storing player info and slot index
+        # Also decrement troops with an unknown streak of 1 to adjust for the missed frame
         for troop in (ally_placed or []):
             if troop not in self.troop_delay_buffer:
-                self.troop_delay_buffer[troop] = {
-                    'delay': delay_config.get(troop, 0), 'player': 'ally'}
+                # Find slot index for this troop in ally_cards
+                try:
+                    slot_idx = self.card_states[-1]["ally"].index(troop)
+                except (ValueError, IndexError):
+                    slot_idx = -1
+
+                # Check unknown streak
+                if self.ally_unknown_streak == 1:
+                    # max of 0 and one less to avoid a negative buffer
+                    self.troop_delay_buffer[troop] = {
+                        'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'ally', 'slot_idx': slot_idx}
+                else:
+                    self.troop_delay_buffer[troop] = {
+                        'delay': delay_config.get(troop, 0), 'player': 'ally', 'slot_idx': slot_idx}
+
         for troop in (enemy_placed or []):
             if troop not in self.troop_delay_buffer:
-                self.troop_delay_buffer[troop] = {
-                    'delay': delay_config.get(troop, 0), 'player': 'enemy'}
+                try:
+                    slot_idx = self.card_states[-1]["enemy"].index(troop)
+                except (ValueError, IndexError):
+                    slot_idx = -1
+                
+                # Check unknown streak
+                if self.enemy_unknown_streak == 1:
+                    # max of 0 and one less to avoid a negative buffer
+                    self.troop_delay_buffer[troop] = {
+                        'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'enemy', 'slot_idx': slot_idx}
+                else:
+                    self.troop_delay_buffer[troop] = {
+                        'delay': delay_config.get(troop, 0), 'player': 'enemy', 'slot_idx': slot_idx}
+                    
         # Decrement all delay counters and release troops when ready
         for troop in list(self.troop_delay_buffer.keys()):
             entry = self.troop_delay_buffer[troop]
             if entry['delay'] > 0:
-                print(
-                    f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
+                print(f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
                 entry['delay'] -= 1
                 self.troop_delay_buffer[troop] = entry
             else:

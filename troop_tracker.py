@@ -316,7 +316,7 @@ class TroopTrack:
             print(f"Background analysis error for track {self.track_id}: {e}")
             return {'matches_background': False, 'color_diff': float('inf')}
 
-    def is_stale(self, current_frame: int, max_missing_frames: int = 2, troop_config: Dict = None, frame_data: np.ndarray = None, arena_bg_color: np.ndarray = None) -> bool:
+    def is_stale(self, current_frame: int, max_missing_frames: int = 0, troop_config: Dict = None, frame_data: np.ndarray = None, arena_bg_color: np.ndarray = None) -> bool:
         """Check if track should be removed due to being missing too long, exceeding duration, or lack of content"""
         # Check if missing too long (real detections only)
         missing_frames = current_frame - self.last_seen_frame
@@ -358,8 +358,8 @@ class TroopTrack:
             # print(f"  Average movement per frame: {avg_movement:.2f} pixels")
             # print(f"  Low activity count: {self.low_activity_count}")
 
-            # Consider low activity if moving less than 2 pixels per frame on average
-            has_movement = avg_movement > 2.0
+            # Consider low activity if moving less than MIN_MOVEMENT pixels per frame on average
+            has_movement = avg_movement > config.MIN_MOVEMENT
 
             # Check if this troop is a building FIRST - before movement logic
             is_building = False
@@ -403,7 +403,7 @@ class TroopTrack:
                 # NON-BUILDING REMOVAL: Use movement-based removal
                 if not is_building:
                     # Remove after 4 frames of low movement (but not for buildings)
-                    if self.low_activity_count >= 4:
+                    if self.low_activity_count >= config.MIN_ACTIVITY_FRAMES:
                         print(
                             f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
                         return True
@@ -438,7 +438,7 @@ class TroopTrack:
 class TroopTracker:
     """Lightweight tracker that associates detections across frames"""
 
-    def __init__(self, max_distance: float = 100.0, max_missing_frames: int = 0):
+    def __init__(self, max_distance: float = config.MAX_DISTANCE, max_missing_frames: int = 0):
         self.tracks: List[TroopTrack] = []
         self.next_track_id = 1
         self.max_distance = max_distance  # Max distance to associate detection with track
