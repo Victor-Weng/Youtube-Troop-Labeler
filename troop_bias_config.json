@@ -142,7 +142,7 @@
             "biased_positions": [],
             "delay": 0.1,
             "duration": null,
-            "average_color": [120, 100, 90]
+            "average_color": [97, 74, 45]
         },
         "clone": {
             "size_rank": 2,
@@ -787,10 +787,10 @@
         "tesla": {
             "size_rank": 5,
             "aspect_ratio": 1.6,
-            "biased_positions": ["BUILDING"],
+            "biased_positions": ["BUILDING", "BRIDGE"],
             "delay": 0.1,
             "duration": 15,
-            "average_color": [140, 90, 170]
+            "average_color": [208, 164, 136]
         },
         "the log": {
             "size_rank": 3,

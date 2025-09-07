@@ -30,7 +30,7 @@ THRESHOLD = 5  # threshold for color difference to run card detection model
 COOLDOWN_FRAMES = 1
 
 # Scoring boost
-MOG2_BIAS_BOOST = 1.5  # boost troops on our side by 2x
+MOG2_BIAS_BOOST = 4.0  # boost troops on our side by 2x
 # still used incase golden
 GOLDEN = [253, 255, 69]
 ALLY_BLUE = [51, 182, 229] # ally blue to look out for
@@ -55,11 +55,11 @@ MIN_ACTIVITY_FRAMES = 1 # Remove tracks after minimal movement in these frames
 MIN_MOVEMENT = 1.0 # Less than 1,0 pixels per frame on average
 
 # DIFF Tracking Comparison
-DIFF_OVERLAP_THRESHOLD = 0.3 # at least this much overlap with a track is considered valid
-DIFF_FRAME_THRESHOLD = 2 # If more than 2 frames without a diff passing the overlap threshold, remove the track
+DIFF_OVERLAP_THRESHOLD = 0.1 # at least this much overlap with a track is considered valid
+DIFF_FRAME_THRESHOLD = 3 # If more than 2 frames without a diff passing the overlap threshold, remove the track
 
 # DIFF Tracking Continuation
-DIFF_SIZE_THRESHOLD = 0.4 # size at least this similar for tracking to jump to this diff
+DIFF_SIZE_THRESHOLD = 0.3 # size at least this similar for tracking to jump to this diff
 DIFF_TRACK_OVERLAP_THRESHOLD = 0.3 # At least this much overlap for the tracking to jump to this diff frame AND assuming new track dimensions. This should update all properties associated with the track.
 
 # Troop verification model settings

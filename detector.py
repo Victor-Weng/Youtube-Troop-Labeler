@@ -145,7 +145,7 @@ class TroopDetector:
                     w2 * np.array(self.arena_background_color)
                 ) / (w1 + w2)
             color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
-            color_score_golden = (1.0 - min(color_distance_golden / max_color_distance, 1.0))*0.8 # to weigh it down a bit
+            color_score_golden = (1.0 - min(color_distance_golden / max_color_distance, 1.0))
             color_score = max(color_score_reg, color_score_golden)
             # print(f"Color score for detection: {color_score}, position: ({abs_x}, {abs_y}, {w}, {h})")
             # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
@@ -591,46 +591,62 @@ class TroopDetector:
         return objects
 
     def detect_hand_cards(self, frame, which="ally"):
-        # print("RUNNING MODEL")
-        try:
-            # Capture individual cards with frame and player type
-            card_data = self.actions.capture_individual_cards(
-                frame=frame, player_type=which)
-            card_paths = card_data['cards']
-            # print(f"\nIndividual card predictions for {which}:")
+        return self.detect_hand_cards_slots(frame, which)
 
-            cards = []
+    def _compute_slot_color_means(self, frame, which):
+        if which == 'ally':
+            coords = config.ALLY_HAND_COORDS
+        else:
+            coords = config.ENEMY_HAND_COORDS
+        means = []
+        for (x,y,w,h) in coords:
+            crop = frame[y:y+h, x:x+w]
+            if crop.size == 0:
+                means.append(np.array([0,0,0]))
+            else:
+                means.append(np.mean(crop, axis=(0,1)))
+        return means
+
+    def detect_changed_slots(self, frame, which, threshold=config.THRESHOLD):
+        # Returns list of slot indices whose mean color changed beyond threshold
+        current_means = self._compute_slot_color_means(frame, which)
+        attr = f"prev_{which}_slot_means"
+        prev = getattr(self, attr, None)
+        changed = []
+        if prev is None:
+            changed = list(range(len(current_means)))  # first frame detect all
+        else:
+            for i,(c,p) in enumerate(zip(current_means, prev)):
+                if np.linalg.norm(c - p) > threshold:
+                    changed.append(i)
+        setattr(self, attr, current_means)
+        return changed
+
+    def detect_hand_cards_slots(self, frame, which="ally", slots=None):
+        try:
             CARD_DETECTION = os.getenv('CARD_DETECTION')
             if not CARD_DETECTION:
-                raise ValueError(
-                    "CARD_DETECTION environment variable is not set. Please check your .env file.")
-
+                raise ValueError("CARD_DETECTION environment variable is not set. Please check your .env file.")
+            # Capture only requested slots (None means all)
+            card_data = self.actions.capture_individual_cards(frame=frame, player_type=which, slots=slots)
+            card_paths = card_data['cards']
+            results_per_slot = []
             for card_path in card_paths:
-                results = self.card_model.infer(
-                    card_path,
-                    model_id=CARD_DETECTION
-                )
-                # print("Card detection raw results:", results.get('top'))  # Debug print
-                # Fix: parse nested structure
+                results = self.card_model.infer(card_path, model_id=CARD_DETECTION)
                 if isinstance(results, dict) and results:
                     confidence = results.get('confidence', 0.0)
                     predictions = results.get('predictions', [])
-
-                    # If no predictions or empty, treat as unknown
-                    if not predictions or len(predictions) == 0:
-                        cards.append("Unknown")
-                    # If low confidence (uncertain), treat as unknown for now
+                    if not predictions or len(predictions)==0:
+                        results_per_slot.append("Unknown")
                     elif confidence <= config.DETECTION_CONFIDENCE:
-                        cards.append("Unknown")
-                    # High confidence, use the top prediction
+                        results_per_slot.append("Unknown")
                     else:
-                        cards.append(results['top'])
+                        results_per_slot.append(results['top'])
                 else:
-                    cards.append("Unknown")
-            return cards
-        except Exception as e:
-            # print(f"Error in detect_hand_cards for {which}: {e}")
-            return []
+                    results_per_slot.append("Unknown")
+            return results_per_slot
+        except Exception:
+            return ["Unknown"] * (len(slots) if slots else 4)
 
     def should_run_card_detection(self, frame: np.ndarray, which, threshold=config.THRESHOLD, cooldown_frames=config.COOLDOWN_FRAMES):
         if not hasattr(self, 'card_detection_cooldown'):
@@ -669,22 +685,27 @@ class TroopDetector:
 
     def process_frame(self, frame: np.ndarray, frame_number: int) -> Tuple[List, np.ndarray, List]:
         """Process single frame and detect cards"""
-        # dynamic call of card detection if pixel difference noted or if there was a bad read last time and need to double check.
-        if self.should_run_card_detection(frame, which="ally") or 1 in self.ally_unknown_streak:
-            # print("Detecting hand cards ally")
-            ally_cards = self.detect_hand_cards(frame, "ally")
-        elif self.card_states:
-            ally_cards = self.card_states[-1]["ally"]
-        else:
-            ally_cards = []
+        # Per-slot change detection
+        ally_changed = self.detect_changed_slots(frame, 'ally')
+        enemy_changed = self.detect_changed_slots(frame, 'enemy')
 
-        if self.should_run_card_detection(frame, which="enemy") or 1 in self.enemy_unknown_streak:
-            # print("Detecting hand cards enemy")
-            enemy_cards = self.detect_hand_cards(frame, "enemy")
-        elif self.card_states:
-            enemy_cards = self.card_states[-1]["enemy"]
+        # Initialize from previous state or Unknowns
+        if self.card_states:
+            ally_cards = self.card_states[-1]["ally"].copy()
+            enemy_cards = self.card_states[-1]["enemy"].copy()
         else:
-            enemy_cards = []
+            ally_cards = ["Unknown"]*4
+            enemy_cards = ["Unknown"]*4
+
+        # Run detection only on changed slots
+        if ally_changed:
+            detected = self.detect_hand_cards_slots(frame, 'ally', slots=ally_changed)
+            for idx, slot in enumerate(ally_changed):
+                ally_cards[slot] = detected[idx]
+        if enemy_changed:
+            detected = self.detect_hand_cards_slots(frame, 'enemy', slots=enemy_changed)
+            for idx, slot in enumerate(enemy_changed):
+                enemy_cards[slot] = detected[idx]
 
         # Check if any of the cards are "None": do not update card_states because likely card overlapping another
         # Only skip if this is the first time (incase card REALLY is unknown), or else reset counter

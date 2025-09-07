@@ -50,7 +50,7 @@ class Actions:
         screenshot = pyautogui.screenshot(region=region)
         screenshot.save(save_path)
 
-    def capture_individual_cards(self, frame=None, player_type="ally"):
+    def capture_individual_cards(self, frame=None, player_type="ally", slots=None):
         """
         Capture and split card bar into individual card images
 
@@ -86,7 +86,13 @@ class Actions:
         os.makedirs(screenshots_dir, exist_ok=True)
 
         # Use exact coordinates from config instead of dividing by 4
+        # Optional notice when capturing exactly one specific slot
+        if slots is not None and isinstance(slots, (list, tuple)) and len(slots) == 1:
+            print(f"[CARD CAPTURE] Capturing only slot {slots[0]} for {player_type}")
+
         for i, (x, y, w, h) in enumerate(coords):
+            if slots is not None and i not in slots:
+                continue  # skip non-requested slots
             # Calculate relative position within the captured screenshot
             rel_x = x - region[0]
             rel_y = y - region[1]
