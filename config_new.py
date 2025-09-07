@@ -6,10 +6,10 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 6  # 247.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 150  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 1  # s per frame delay
+DELAY = 0.2  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 10000  # Smaller maximum (focus on troop-sized objects)
@@ -19,10 +19,10 @@ MIN_DETECTION_WIDTH = 75   # Minimum width for detection boxes
 MIN_DETECTION_HEIGHT = 100  # Minimum height for detection boxes
 
 # Detection confidence
-DETECTION_CONFIDENCE = 0.5 # lower to allow for grayed out cards
+DETECTION_CONFIDENCE = 0.7 # lower to allow for grayed out cards
 
-# Detection overlap, anything more than 0.7 of overlap is discounted.
-OVERLAP_THRESHOLD = 0.6
+# Detection overlap, anything more than 0.4 of overlap is discounted.
+OVERLAP_THRESHOLD = 0.4
 
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
 THRESHOLD = 5  # threshold for color difference to run card detection model
@@ -59,8 +59,8 @@ DIFF_OVERLAP_THRESHOLD = 0.3 # at least this much overlap with a track is consid
 DIFF_FRAME_THRESHOLD = 2 # If more than 2 frames without a diff passing the overlap threshold, remove the track
 
 # DIFF Tracking Continuation
-DIFF_SIZE_THRESHOLD = 0.6 # size at least this similar for tracking to jump to this diff
-DIFF_TRACK_OVERLAP_THRESHOLD = 0.4 # At least this much overlap for the tracking to jump to this diff frame AND assuming new track dimensions. This should update all properties associated with the track.
+DIFF_SIZE_THRESHOLD = 0.4 # size at least this similar for tracking to jump to this diff
+DIFF_TRACK_OVERLAP_THRESHOLD = 0.3 # At least this much overlap for the tracking to jump to this diff frame AND assuming new track dimensions. This should update all properties associated with the track.
 
 # Troop verification model settings
 # Use verification when candidate scores are within this threshold

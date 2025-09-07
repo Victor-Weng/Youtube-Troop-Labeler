@@ -147,7 +147,7 @@ class TroopDetector:
             color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
             color_score_golden = (1.0 - min(color_distance_golden / max_color_distance, 1.0))*0.8 # to weigh it down a bit
             color_score = max(color_score_reg, color_score_golden)
-            print(f"Color score for detection: {color_score}, position: ({abs_x}, {abs_y}, {w}, {h})")
+            # print(f"Color score for detection: {color_score}, position: ({abs_x}, {abs_y}, {w}, {h})")
             # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
             if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
                 if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
@@ -209,7 +209,7 @@ class TroopDetector:
                 roi,
                 model_id=TROOP_DETECTION
             )
-            print(f"inference results: {results}")
+            # print(f"inference results: {results}")
             # Parse results using same pattern as detect_hand_cards
             if isinstance(results, dict) and results:
                 confidence = results.get('confidence', 0.0)
@@ -235,7 +235,7 @@ class TroopDetector:
             return 0.0
 
         except Exception as e:
-            print(f"Troop verification error: {e}")
+            # print(f"Troop verification error: {e}")
             return 0.0
 
     def update_card_states(self, frame, ally_cards, enemy_cards):
@@ -286,7 +286,7 @@ class TroopDetector:
         arena_sample = frame[y:y+h, x:x+w]
         # Get average color of the sample region
         self.arena_background_color = cv2.mean(arena_sample)[:3]  # BGR values
-        print(f"Arena background color set to: {self.arena_background_color}")
+    # print(f"Arena background color set to: {self.arena_background_color}")
 
         # Pass the background color to the troop tracker for building removal
         self.troop_tracker.set_arena_background_color(
@@ -366,7 +366,7 @@ class TroopDetector:
             return debug_frame
 
         if card_changes:
-            print(f"DEBUG: Detecting objects for cards: {card_changes}")
+            pass  # detection triggered
 
         all_objects = mog2_objects + diff_objects
         # print(
@@ -387,8 +387,8 @@ class TroopDetector:
         # Overlap between detection boxes
         def compute_overlap(boxA, boxB):
             # box: (x, y, w, h)
-            print(f"Box A: {boxA}")
-            print(f"Box B: {boxB}")
+            # print(f"Box A: {boxA}")
+            # print(f"Box B: {boxB}")
             xA = max(boxA[0], boxB[0])
             yA = max(boxA[1], boxB[1])
             xB = min(boxA[0]+boxA[2], boxB[0]+boxB[2])
@@ -421,7 +421,7 @@ class TroopDetector:
                 abs_y = max(0, abs_y)
                 abs_x = min(720 - w, abs_x)
                 abs_y = min(1280 - h, abs_y)
-                print(f"EXPANDED DETECTION: {troop} from {original_w}x{original_h} to {w}x{h} at ({abs_x},{abs_y})")
+                # print(f"EXPANDED DETECTION: {troop} from {original_w}x{original_h} to {w}x{h} at ({abs_x},{abs_y})")
 
             return abs_x, abs_y, w,h
                 
@@ -435,8 +435,8 @@ class TroopDetector:
                     last = track.positions[-1]
                     tracked_box = (last['x'], last['y'], last['w'], last['h'])
                     assigned_boxes.append(tracked_box)
-            if assigned_boxes:
-                print(f"[OVERLAP INIT] Seed assigned boxes (prev + tracks): {assigned_boxes}")
+            # if assigned_boxes:
+            #     print(f"[OVERLAP INIT] Seed assigned boxes (prev + tracks): {assigned_boxes}")
 
         for entry in card_changes:
             troop = entry['troop']
@@ -444,7 +444,7 @@ class TroopDetector:
             troop_key = f"{player}_{troop}"
             # Limit to 1 detection per troop type per frame
             if troop_key in processed_troops:
-                print(f"SKIPPING: Already processed {troop_key} this frame")
+                # print(f"SKIPPING: Already processed {troop_key} this frame")
                 continue
             processed_troops[troop_key] = True
             troop_info = troop_config.get(troop, None)
@@ -477,16 +477,16 @@ class TroopDetector:
                                 overlap = compute_overlap(candidate_box, assigned_box)
                                 if overlap > overlap_threshold:
                                     overlaps = True
-                                    print(f"Overlap is {overlap}, looking for another detection")
+                                    # print(f"Overlap is {overlap}, looking for another detection")
                                     break
-                                print(f"Overlap is {overlap}, not high enough")
+                                # print(f"Overlap is {overlap}, not high enough")
                         if not overlaps:
                             best_object = obj_candidate
                             best_score = score_candidate
                             break
                 if best_object is None:
                     # If all candidates overlap, skip assignment
-                    print(f"No non-overlapping detection found for {troop_key}")
+                    # print(f"No non-overlapping detection found for {troop_key}")
                     continue
                 
                 abs_x, abs_y, w,h = _expand_detection(best_object)
@@ -504,7 +504,7 @@ class TroopDetector:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 cv2.putText(debug_frame, f"Area:{best_object.get('area', 0):.0f} Method:{best_object.get('method', '?')}", (
                     abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object.get('area', 0):.0f} via {best_object.get('method', '?')}")
+                # print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object.get('area', 0):.0f} via {best_object.get('method', '?')}")
                 self.latest_detections.append(best_object)
                 assignments_summary.append({
                     'troop': troop,
@@ -610,7 +610,7 @@ class TroopDetector:
                     card_path,
                     model_id=CARD_DETECTION
                 )
-                print("Card detection raw results:", results.get('top'))  # Debug print
+                # print("Card detection raw results:", results.get('top'))  # Debug print
                 # Fix: parse nested structure
                 if isinstance(results, dict) and results:
                     confidence = results.get('confidence', 0.0)
@@ -629,7 +629,7 @@ class TroopDetector:
                     cards.append("Unknown")
             return cards
         except Exception as e:
-            print(f"Error in detect_hand_cards for {which}: {e}")
+            # print(f"Error in detect_hand_cards for {which}: {e}")
             return []
 
     def should_run_card_detection(self, frame: np.ndarray, which, threshold=config.THRESHOLD, cooldown_frames=config.COOLDOWN_FRAMES):
@@ -647,7 +647,7 @@ class TroopDetector:
         elif which == 'enemy':
             x, y, w, h = config.ENEMY_REGION
         else:
-            print("invalid which passed in should_run_card_detection")
+            return False  # invalid which
 
         curr_crop = frame[y:y+h, x:x+w]
         curr_mean = np.mean(curr_crop, axis=(0, 1))
@@ -662,7 +662,7 @@ class TroopDetector:
         if color_dist > threshold:
             # set cooldown frames
             self.card_detection_cooldown[which] = cooldown_frames
-            print(f"DETECTING CARD on dist of {color_dist}")
+            # print(f"DETECTING CARD on dist of {color_dist}")
             return True
         else:
             return False
@@ -671,7 +671,7 @@ class TroopDetector:
         """Process single frame and detect cards"""
         # dynamic call of card detection if pixel difference noted or if there was a bad read last time and need to double check.
         if self.should_run_card_detection(frame, which="ally") or 1 in self.ally_unknown_streak:
-            print("Detecting hand cards ally")
+            # print("Detecting hand cards ally")
             ally_cards = self.detect_hand_cards(frame, "ally")
         elif self.card_states:
             ally_cards = self.card_states[-1]["ally"]
@@ -679,7 +679,7 @@ class TroopDetector:
             ally_cards = []
 
         if self.should_run_card_detection(frame, which="enemy") or 1 in self.enemy_unknown_streak:
-            print("Detecting hand cards enemy")
+            # print("Detecting hand cards enemy")
             enemy_cards = self.detect_hand_cards(frame, "enemy")
         elif self.card_states:
             enemy_cards = self.card_states[-1]["enemy"]
@@ -768,7 +768,7 @@ class TroopDetector:
         for troop in list(self.troop_delay_buffer.keys()):
             entry = self.troop_delay_buffer[troop]
             if entry['delay'] > 0:
-                print(f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
+                # print(f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
                 entry['delay'] -= 1
                 self.troop_delay_buffer[troop] = entry
             else:
@@ -785,25 +785,25 @@ class TroopDetector:
                     # Close to removal threshold (3)
                     if hasattr(track, 'bg_match_count') and track.bg_match_count >= 2:
                         is_about_to_be_removed = True
-                        print(
-                            f"[DELAY] Track {track.track_id} ({track.card_type}) has bg_match_count={track.bg_match_count} - about to be removed")
+                        # about to be removed logging suppressed
+                        pass
 
                     if not is_about_to_be_removed:
                         stable_tracks.append(track)
 
                 if stable_tracks:
-                    print(
-                        f"[DELAY] SUPPRESSING {troop} ({entry['player']}) - {len(stable_tracks)} stable tracks already exist")
+                    # suppression log suppressed
+                    pass
                     # Remove from buffer without creating detection
                     del self.troop_delay_buffer[troop]
                 else:
                     all_changes.append(
                         {'troop': troop, 'player': entry['player']})
                     del self.troop_delay_buffer[troop]
-                    print(
-                        f"[DELAY] RELEASING {troop} ({entry['player']}) - no existing tracks")
+                    # release log suppressed
+                    pass
         if all_changes:
-            print("Ready for detection:", all_changes)
+            pass  # ready for detection
 
         # Always track arena changes (tracking region always visible)
         debug_frame = self.track_arena_changes(

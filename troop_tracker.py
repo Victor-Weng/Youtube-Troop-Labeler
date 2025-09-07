@@ -121,8 +121,8 @@ class TroopTrack:
                     return None
 
             except Exception as e:
-                print(
-                    f"Feature detection error for track {self.track_id}: {e}")
+                # Silenced: only keep troop assignment summary & [DIFF JUMP] logs
+                pass  # Feature detection error suppressed
                 return None
 
         # Track features using Lucas-Kanade optical flow
@@ -176,8 +176,8 @@ class TroopTrack:
                             else:
                                 dx, dy = 0.0, 0.0
                         except Exception as e:
-                            print(
-                                f"Displacement calculation error for track {self.track_id}: {e}")
+                            # Silenced error output
+                            pass  # Displacement calculation error suppressed
                             dx, dy = 0.0, 0.0
                     else:
                         # Fallback if arrays are incompatible
@@ -218,7 +218,8 @@ class TroopTrack:
                     return None
 
             except Exception as e:
-                print(f"Optical flow error for track {self.track_id}: {e}")
+                # Silenced optical flow error
+                pass  # Optical flow error suppressed
                 # Reset feature points on any error
                 self.feature_points = None
                 return None
@@ -289,7 +290,8 @@ class TroopTrack:
             }
 
         except Exception as e:
-            print(f"Content analysis error for track {self.track_id}: {e}")
+            # Silenced content analysis error
+            pass
             return {'has_content': False, 'score': 0.0}
 
     def analyze_background_match(self, current_frame: np.ndarray, arena_bg_color: np.ndarray = None) -> Dict:
@@ -331,7 +333,8 @@ class TroopTrack:
             }
 
         except Exception as e:
-            print(f"Background analysis error for track {self.track_id}: {e}")
+            # Silenced background analysis error
+            pass
             return {'matches_background': False, 'color_diff': float('inf')}
 
     def is_stale(self, current_frame: int, max_missing_frames: int = 0, troop_config: Dict = None, frame_data: np.ndarray = None, arena_bg_color: np.ndarray = None) -> bool:
@@ -517,9 +520,9 @@ class TroopTracker:
             box=(track.positions[-1]['x'],track.positions[-1]['y'],track.positions[-1]['w'],track.positions[-1]['h'])
             found=any(self._diff_overlap(box,(d['x'],d['y'],d['w'],d['h']))>=config.DIFF_OVERLAP_THRESHOLD for d in diff_boxes)
             track._diff_miss=0 if found else getattr(track,'_diff_miss',0)+1
-        print(f"[DIFF REMOVE] Track {track.track_id} overlap_found={found if 'found' in locals() else False} miss={track._diff_miss}/{config.DIFF_FRAME_THRESHOLD}")
+        #print(f"[DIFF REMOVE] Track {track.track_id} overlap_found={found if 'found' in locals() else False} miss={track._diff_miss}/{config.DIFF_FRAME_THRESHOLD}")
         if track._diff_miss>config.DIFF_FRAME_THRESHOLD:
-            print(f"[DIFF REMOVE] Removing track {track.track_id} (exceeded misses)")
+            #print(f"[DIFF REMOVE] Removing track {track.track_id} (exceeded misses)")
             return True
         return False
 
@@ -635,13 +638,13 @@ class TroopTracker:
                 new_track = TroopTrack(
                     self.next_track_id, detection, frame_number)
                 self.tracks.append(new_track)
-                print(
-                    f"TRACK CREATED: Track {self.next_track_id} ({detection.get('card_type', 'Unknown')}) at frame {frame_number} position ({detection['center_x']:.0f},{detection['center_y']:.0f}) from {detection.get('method', 'DETECTION')}")
+                # Silenced track creation log
+                pass
                 self.next_track_id += 1
         else:
             if unmatched_detections:
-                print(
-                    f"SUPPRESSING {len(unmatched_detections)} unmatched detections - not expecting new cards")
+                # Silenced suppression notice
+                pass
 
         # Apply diff-based removal before optical flow
         pruned=[]
@@ -680,8 +683,8 @@ class TroopTracker:
                 # Fallback to last known position for tracks without prediction (e.g., buildings being removed)
                 last_pos = track.positions[-1]
                 pred_x, pred_y = last_pos['center_x'], last_pos['center_y']
-                print(
-                    f"Track {track.track_id} using last position fallback for association: ({pred_x}, {pred_y})")
+                # Silenced association fallback log
+                pass
             else:
                 continue
 
