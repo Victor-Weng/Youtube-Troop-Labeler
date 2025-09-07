@@ -9,7 +9,7 @@ RESIZE_FACTOR = 1.0  # Keep original size
 START_TIME_SECONDS = 6  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 0.2  # s per frame delay
+DELAY = 1  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 10000  # Smaller maximum (focus on troop-sized objects)
@@ -25,7 +25,7 @@ DETECTION_CONFIDENCE = 0.5 # lower to allow for grayed out cards
 OVERLAP_THRESHOLD = 0.6
 
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
-THRESHOLD = 3  # threshold for color difference to run card detection model
+THRESHOLD = 5  # threshold for color difference to run card detection model
 # amount of frames after a detection to wait before detecting the next change
 COOLDOWN_FRAMES = 1
 
@@ -53,6 +53,14 @@ TRACKING_REGION = (33, 304, 646, 747)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
 MIN_ACTIVITY_FRAMES = 1 # Remove tracks after minimal movement in these frames
 MIN_MOVEMENT = 1.0 # Less than 1,0 pixels per frame on average
+
+# DIFF Tracking Comparison
+DIFF_OVERLAP_THRESHOLD = 0.3 # at least this much overlap with a track is considered valid
+DIFF_FRAME_THRESHOLD = 2 # If more than 2 frames without a diff passing the overlap threshold, remove the track
+
+# DIFF Tracking Continuation
+DIFF_SIZE_THRESHOLD = 0.6 # size at least this similar for tracking to jump to this diff
+DIFF_TRACK_OVERLAP_THRESHOLD = 0.4 # At least this much overlap for the tracking to jump to this diff frame AND assuming new track dimensions. This should update all properties associated with the track.
 
 # Troop verification model settings
 # Use verification when candidate scores are within this threshold

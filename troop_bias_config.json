@@ -502,7 +502,7 @@
             "biased_positions": [],
             "delay": 0.1,
             "duration": null,
-            "average_color": [90, 140, 210]
+            "average_color": [null]
         },
         "lumberjack": {
             "size_rank": 3,
@@ -587,7 +587,7 @@
         "mortar": {
             "size_rank": 6,
             "aspect_ratio": 0.7,
-            "biased_positions": ["BRIDGE"],
+            "biased_positions": ["BRIDGE", "BUILDING"],
             "delay": 0.1,
             "duration": null,
             "average_color": [150, 120, 90]

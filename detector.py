@@ -147,7 +147,7 @@ class TroopDetector:
             color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
             color_score_golden = (1.0 - min(color_distance_golden / max_color_distance, 1.0))*0.8 # to weigh it down a bit
             color_score = max(color_score_reg, color_score_golden)
-            print(f"Color score for detection: {color_score}")
+            print(f"Color score for detection: {color_score}, position: ({abs_x}, {abs_y}, {w}, {h})")
             # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
             if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
                 if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
@@ -346,6 +346,10 @@ class TroopDetector:
 
         diff_objects = self._detect_with_frame_diff(
             current_region, prev_region)
+        # Store absolute diff objects for tracker usage each frame
+        self.diff_abs_objects = [
+            {'x': track_x + o['x'], 'y': track_y + o['y'], 'w': o['w'], 'h': o['h'], 'area': o['area'], 'method': 'DIFF'} for o in diff_objects
+        ]
         # Draw purple boxes for all Frame Diff detections (debugging)
         for obj in diff_objects:
             abs_x = track_x + obj['x']
@@ -421,9 +425,18 @@ class TroopDetector:
 
             return abs_x, abs_y, w,h
                 
+        # Should be a clean version of just the last frame's detection
         assigned_boxes = self.assigned_boxes.copy()
         current_frame_boxes = []
-        # Include currently tracked boxes for general overlap suppression
+        # Include currently tracked boxes (last known position) for overlap suppression
+        if hasattr(self.troop_tracker, 'tracks'):
+            for track in self.troop_tracker.tracks:
+                if getattr(track, 'positions', None):
+                    last = track.positions[-1]
+                    tracked_box = (last['x'], last['y'], last['w'], last['h'])
+                    assigned_boxes.append(tracked_box)
+            if assigned_boxes:
+                print(f"[OVERLAP INIT] Seed assigned boxes (prev + tracks): {assigned_boxes}")
 
         for entry in card_changes:
             troop = entry['troop']
@@ -459,7 +472,6 @@ class TroopDetector:
                         abs_x, abs_y, w, h = _expand_detection(obj_candidate)
                         candidate_box = (abs_x, abs_y, w, h)
                         overlaps = False
-                        print(f"Assigned boxes: {assigned_boxes}")
                         if len(assigned_boxes)>0:
                             for assigned_box in assigned_boxes:
                                 overlap = compute_overlap(candidate_box, assigned_box)
@@ -809,7 +821,7 @@ class TroopDetector:
 
         # Update tracker with detections and let it handle optical flow tracking internally
         active_tracks = self.troop_tracker.update(
-            detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame, expecting_new_cards=expecting_new_cards)
+            detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame, expecting_new_cards=expecting_new_cards, diff_detections=getattr(self,'diff_abs_objects',[]))
 
         # Store current frame for next iteration
         self.previous_full_frame = frame.copy()
