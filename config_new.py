@@ -9,7 +9,7 @@ RESIZE_FACTOR = 1.0  # Keep original size
 START_TIME_SECONDS = 6  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 1  # s per frame delay
+DELAY = 0.2  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 10000  # Smaller maximum (focus on troop-sized objects)
@@ -21,8 +21,11 @@ MIN_DETECTION_HEIGHT = 100  # Minimum height for detection boxes
 # Detection confidence
 DETECTION_CONFIDENCE = 0.5 # lower to allow for grayed out cards
 
+# Detection overlap, anything more than 0.7 of overlap is discounted.
+OVERLAP_THRESHOLD = 0.6
+
 MOTION_BLUR_KERNEL_SIZE = 11  # Larger kernel for more smoothing
-THRESHOLD = 5  # threshold for color difference to run card detection model
+THRESHOLD = 3  # threshold for color difference to run card detection model
 # amount of frames after a detection to wait before detecting the next change
 COOLDOWN_FRAMES = 1
 
@@ -49,7 +52,7 @@ MAX_DISTANCE = 150
 TRACKING_REGION = (33, 304, 646, 747)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
 MIN_ACTIVITY_FRAMES = 1 # Remove tracks after minimal movement in these frames
-MIN_MOVEMENT = 1.2 # Less than 1,0 pixels per frame on average
+MIN_MOVEMENT = 1.0 # Less than 1,0 pixels per frame on average
 
 # Troop verification model settings
 # Use verification when candidate scores are within this threshold

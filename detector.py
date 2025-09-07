@@ -42,6 +42,8 @@ class TroopDetector:
         # Troop tracking
         self.troop_tracker = TroopTracker(
             max_distance=80.0, max_missing_frames=600)
+        # Store assigned boxes from last frame
+        self.assigned_boxes = []
 
     def detect_game_active(self, frame):
         # extract region of interest
@@ -78,107 +80,88 @@ class TroopDetector:
                 self.is_game = False
             return False
 
-    def score_detection(self, obj, troop_info, player, frame: np.ndarray, frame_height, pc, config):
-        area = obj['area']
-        w, h = obj['w'], obj['h']
-        if 'abs_x' in obj and 'abs_y' in obj:
-            x, y = obj['abs_x'], obj['abs_y']
-        else:
-            # Convert relative to absolute using tracking offset
-            track_x, track_y, _, _ = config.TRACKING_REGION
-        x, y = obj['x'] + track_x, obj['y'] + track_y
-        aspect_ratio = h / w if w > 0 else 0
-        size_score = 1.0 - \
-            abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
-        ar_score = 1.0 - abs(aspect_ratio -
-                             troop_info.get('aspect_ratio', 1.0))/2.0
-        pos_score = 0.5
-        for pos in troop_info.get('biased_positions', []):
-            if isinstance(pos, str) and hasattr(pc, pos.upper()):
-                regions = getattr(pc, pos.upper())[player]
-                for region in regions:
-                    px, py, pw, ph = region
-                    # Check if ENTIRE detection bounding box fits within region
-                    detection_right = x + w
-                    detection_bottom = y + h
-                    region_right = px + pw
-                    region_bottom = py + ph
-
-                    if (x >= px and detection_right <= region_right and
-                            y >= py and detection_bottom <= region_bottom):
-                        print(
-                            f"ENTIRE DETECTION IN REGION: ({x},{y},{w},{h}) within ({px},{py},{pw},{ph})")
-                        pos_score = 1.0
+    def score_detection(self, objects, troop_info, player, frame: np.ndarray, frame_height, pc, config):
+        # Accepts a list of detection objects, returns best detection and its score
+        best_score = -float('inf')
+        best_obj = None
+        for obj in objects:
+            area = obj['area']
+            w, h = obj['w'], obj['h']
+            if 'abs_x' in obj and 'abs_y' in obj:
+                x, y = obj['abs_x'], obj['abs_y']
+            else:
+                track_x, track_y, _, _ = config.TRACKING_REGION
+                x, y = obj['x'] + track_x, obj['y'] + track_y
+            aspect_ratio = h / w if w > 0 else 0
+            size_score = 1.0 - abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
+            ar_score = 1.0 - abs(aspect_ratio - troop_info.get('aspect_ratio', 1.0))/2.0
+            pos_score = 0.5
+            for pos in troop_info.get('biased_positions', []):
+                if isinstance(pos, str) and hasattr(pc, pos.upper()):
+                    regions = getattr(pc, pos.upper())[player]
+                    for region in regions:
+                        px, py, pw, ph = region
+                        detection_right = x + w
+                        detection_bottom = y + h
+                        region_right = px + pw
+                        region_bottom = py + ph
+                        if (x >= px and detection_right <= region_right and y >= py and detection_bottom <= region_bottom):
+                            pos_score = 1.0
+                            break
+                    if pos_score == 1.0:
                         break
-                if pos_score == 1.0:
-                    break
-        
-        # Code for getting color score that uses: average color of the region
-        # and compares against: troop_info.get('average_color') - self.arena_background_color + 0.3*config.ALLY_BLUE (if ally) or + 0.3*config.ENEMY_RED (if enemy)
-        abs_x = track_x + obj['x']
-        abs_y = track_y + obj['y']
-        region_crop = frame[abs_y:abs_y+h, abs_x:abs_x+w]
-        avg_color = np.mean(region_crop, axis=(0,1))
-        side_color = np.array([0,0,0])
-        if(player=='ally'):
-            side_color = np.array(config.ALLY_BLUE)
-        elif(player=='enemy'):
-            side_color = np.array(config.ENEMY_RED)
-        
-        if len(np.array(troop_info.get('average_color'))) == 3:
+            abs_x = track_x + obj['x']
+            abs_y = track_y + obj['y']
+            region_crop = frame[abs_y:abs_y+h, abs_x:abs_x+w]
+            avg_color = np.mean(region_crop, axis=(0,1))
+            side_color = np.array([0,0,0])
+            if(player=='ally'):
+                side_color = np.array(config.ALLY_BLUE)
+            elif(player=='enemy'):
+                side_color = np.array(config.ENEMY_RED)
+            if len(np.array(troop_info.get('average_color'))) == 3:
+                w1 = 1
+                w2 = 0.5
+                w3 = 1
+                target_color = (
+                    w1 * np.array(troop_info.get('average_color'))[::-1] + 
+                    w2 * np.array(self.arena_background_color) + 
+                    w3 * np.array(side_color)
+                ) / (w1 + w2 + w3)
+            else:
+                w1 = 0.5
+                w2 = 0.8
+                target_color = (
+                    w1 * np.array(self.arena_background_color) + 
+                    w2 * np.array(side_color)
+                ) / (w1 + w2)
+            max_color_distance = np.linalg.norm([255, 255, 255])/2 
+            color_distance_reg = np.linalg.norm(np.array(target_color) - np.array(avg_color))
+            color_score_reg = 1.0 - min(color_distance_reg / max_color_distance, 1.0)
             w1 = 1
-            w2 = 0.5
-            w3 = 0.5
-            # [::-1] reverses the order of the array because CV2 uses BGR isntead of RGB
-            target_color = (
-                w1 * np.array(troop_info.get('average_color'))[::-1] + 
-                w2 * np.array(self.arena_background_color) + 
-                w3 * np.array(side_color)
-            ) / (w1 + w2 + w3)
-        else:
-            print("Predominantly side-dependent color, changed color scoring")
-            w1 = 0.5
-            w2 = 0.8
-            target_color = (
-                w1 * np.array(self.arena_background_color) + 
-                w2 * np.array(side_color)
-            ) / (w1 + w2)
-
-        max_color_distance = np.linalg.norm([255, 255, 255])/2 
-        color_distance_reg = np.linalg.norm(np.array(target_color) - np.array(avg_color))
-        color_score_reg = 1.0 - min(color_distance_reg / max_color_distance, 1.0)
-
-        # Incase golden color is being considered
-        w1 = 1
-        w2 = 0.7
-        target_golden_color = (
-                w1 * np.array(config.GOLDEN)[::-1] + 
-                w2 * np.array(self.arena_background_color)
-            ) / (w1 + w2)
-        
-        color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
-        color_score_golden = 1.0 - min(color_distance_golden / max_color_distance, 1.0)
-
-        # take best of regular and golden
-        color_score = max(color_score_reg, color_score_golden)
-
-        print(f"color score for {abs_x},{abs_y} is {color_score}")
-
-        # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
-        if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
-            if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
-                # print(f"TROOP {troop_info} GETTING BIASED")
-                size_score *= config.MOG2_BIAS_BOOST
-                pos_score *= config.MOG2_BIAS_BOOST
-        # for tower troops
-        elif (player == 'ally' and y < frame_height // 2) or (player == 'enemy' and y > frame_height // 2):
-            if any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
-                # print(f"TOWER TROOP {troop_info} GETTING BIASED")
-                size_score *= config.MOG2_BIAS_BOOST
-                pos_score *= config.MOG2_BIAS_BOOST
-
-        score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score + 0.5*color_score
-        return score
+            w2 = 0.7
+            target_golden_color = (
+                    w1 * np.array(config.GOLDEN)[::-1] + 
+                    w2 * np.array(self.arena_background_color)
+                ) / (w1 + w2)
+            color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
+            color_score_golden = (1.0 - min(color_distance_golden / max_color_distance, 1.0))*0.8 # to weigh it down a bit
+            color_score = max(color_score_reg, color_score_golden)
+            print(f"Color score for detection: {color_score}")
+            # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
+            if (player == 'ally' and y > frame_height // 2) or (player == 'enemy' and y < frame_height // 2):
+                if not any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
+                    size_score *= config.MOG2_BIAS_BOOST
+                    pos_score *= config.MOG2_BIAS_BOOST
+            elif (player == 'ally' and y < frame_height // 2) or (player == 'enemy' and y > frame_height // 2):
+                if any(isinstance(pos, str) and pos.upper() == "TOWER" for pos in troop_info.get('biased_positions', [])):
+                    size_score *= config.MOG2_BIAS_BOOST
+                    pos_score *= config.MOG2_BIAS_BOOST
+            score = 0.7*size_score + 0.5*ar_score + 0.5*pos_score + 1*color_score
+            if score > best_score:
+                best_score = score
+                best_obj = obj
+        return best_obj, best_score
 
     def setup_card_roboflow(self):
         api_key = os.getenv('ROBOFLOW_API_KEY')
@@ -386,113 +369,154 @@ class TroopDetector:
         #    f"DEBUG: MOG2 found {len(mog2_objects)} objects, Frame Diff found {len(diff_objects)} objects")
 
         frame_height = frame.shape[0]
-        # Loop over all troops in card_changes
+        # Greedy assignment using score_detection
         self.latest_detections = []
-        processed_troops = {}  # Track how many detections per troop type
+        import json
+        with open('troop_bias_config.json', 'r') as f:
+            troop_config = json.load(f)["troops"]
+        frame_height = frame.shape[0]
+        remaining_objects = all_objects.copy()
+        assignments_summary = []
+        processed_troops = {}  # Track how many detections per troop type per frame
+        overlap_threshold = getattr(config, 'OVERLAP_THRESHOLD', 0.7)
+
+        # Overlap between detection boxes
+        def compute_overlap(boxA, boxB):
+            # box: (x, y, w, h)
+            print(f"Box A: {boxA}")
+            print(f"Box B: {boxB}")
+            xA = max(boxA[0], boxB[0])
+            yA = max(boxA[1], boxB[1])
+            xB = min(boxA[0]+boxA[2], boxB[0]+boxB[2])
+            yB = min(boxA[1]+boxA[3], boxB[1]+boxB[3])
+            interArea = max(0, xB - xA) * max(0, yB - yA)
+            boxAArea = boxA[2] * boxA[3]
+            boxBArea = boxB[2] * boxB[3]
+            unionArea = boxAArea + boxBArea - interArea
+            # overlap ratio: intersection over union (IoU)
+            return interArea / unionArea if unionArea > 0 else 0
+        
+        # Expand detection boxes, also used by candidate box assignments to compute overlap on expansion
+        def _expand_detection(object):
+            abs_x = track_x + object['x']
+            abs_y = track_y + object['y']
+            w, h = object['w'], object['h']
+            min_width = config.MIN_DETECTION_WIDTH
+            min_height = config.MIN_DETECTION_HEIGHT
+            original_w, original_h = w, h
+
+            # Expand detection box to minimum size
+            if w < min_width or h < min_height:
+                width_expansion = max(0, min_width - w)
+                height_expansion = max(0, min_height - h)
+                abs_x = abs_x - width_expansion // 2
+                abs_y = abs_y - height_expansion // 2
+                w = max(w, min_width)
+                h = max(h, min_height)
+                abs_x = max(0, abs_x)
+                abs_y = max(0, abs_y)
+                abs_x = min(720 - w, abs_x)
+                abs_y = min(1280 - h, abs_y)
+                print(f"EXPANDED DETECTION: {troop} from {original_w}x{original_h} to {w}x{h} at ({abs_x},{abs_y})")
+
+            return abs_x, abs_y, w,h
+                
+        assigned_boxes = self.assigned_boxes.copy()
+        current_frame_boxes = []
+        # Include currently tracked boxes for general overlap suppression
 
         for entry in card_changes:
             troop = entry['troop']
             player = entry['player']
             troop_key = f"{player}_{troop}"
-
             # Limit to 1 detection per troop type per frame
             if troop_key in processed_troops:
                 print(f"SKIPPING: Already processed {troop_key} this frame")
                 continue
             processed_troops[troop_key] = True
-            import json
-            with open('troop_bias_config.json', 'r') as f:
-                troop_config = json.load(f)["troops"]
             troop_info = troop_config.get(troop, None)
-            best_object = None
-            best_score = -float('inf')
-
-            if troop_info:
-                # Score all objects first
-                scored_objects = []
-                for obj in all_objects:
-                    if 'area' not in obj:
-                        obj['area'] = obj.get('w', 1) * obj.get('h', 1)
-                    score = self.score_detection(
-                        obj, troop_info, player, frame, frame_height, pc, config)
-                    scored_objects.append((obj, score))
-
-                # Sort by score (highest first)
-                scored_objects.sort(key=lambda x: x[1], reverse=True)
-
-                if scored_objects:
-                    # Check if top candidates have similar scores (within threshold)
-                    top_score = scored_objects[0][1]
-                    close_candidates = [obj for obj, score in scored_objects[:config.TROOP_VERIFICATION_MAX_ATTEMPTS]
-                                        if top_score - score <= config.TROOP_VERIFICATION_SCORE_THRESHOLD]
-
-                    # UNCOMMENT LATER IF EXTERNAL MODEL WORKS.
-                    # # Use troop verification if multiple close candidates
-                    # if len(close_candidates) > 1:
-                    #     for candidate in close_candidates:
-                    #         verification_confidence = self.verify_troop_detection(
-                    #             frame, candidate, troop)
-                    #         self.logger.info(
-                    #             f"best verification confidence is: {verification_confidence}")
-                    #         if verification_confidence >= config.TROOP_VERIFICATION_MIN_CONFIDENCE:
-                    #             best_object = candidate
-                    #             best_score = verification_confidence
-                    #             break
-                    # else:
-                    #     self.logger.info(f"no close candidates found")
-
-                    # Fallback to highest scoring object if no verification match
-                    if best_object is None:
-                        best_object, best_score = scored_objects[0]
-            if best_object:
-                abs_x = track_x + best_object['x']
-                abs_y = track_y + best_object['y']
-                w, h = best_object['w'], best_object['h']
-
-                # Expand small detections to minimum size
-                min_width = config.MIN_DETECTION_WIDTH
-                min_height = config.MIN_DETECTION_HEIGHT
-                original_w, original_h = w, h
-
-                if w < min_width or h < min_height:
-                    # Calculate expansion needed
-                    width_expansion = max(0, min_width - w)
-                    height_expansion = max(0, min_height - h)
-
-                    # Expand from center - adjust position and size
-                    abs_x = abs_x - width_expansion // 2
-                    abs_y = abs_y - height_expansion // 2
-                    w = max(w, min_width)
-                    h = max(h, min_height)
-
-                    # Ensure we don't go outside frame bounds
-                    abs_x = max(0, abs_x)
-                    abs_y = max(0, abs_y)
-                    # Assuming 720x1280 frame size from config
-                    abs_x = min(720 - w, abs_x)
-                    abs_y = min(1280 - h, abs_y)
-
-                    print(
-                        f"EXPANDED DETECTION: {troop} from {original_w}x{original_h} to {w}x{h} at ({abs_x},{abs_y})")
-
+            if not troop_info or not remaining_objects:
+                continue
+            # Score all remaining objects for this troop
+            scored_objects = []
+            for obj in remaining_objects:
+                if 'area' not in obj:
+                    obj['area'] = obj.get('w', 1) * obj.get('h', 1)
+                score = self.score_detection(
+                    [obj], troop_info, player, frame, frame_height, pc, config)[1]
+                scored_objects.append((obj, score))
+            # Sort by score (highest first)
+            scored_objects.sort(key=lambda x: x[1], reverse=True)
+            if scored_objects:
+                top_score = scored_objects[0][1]
+                # Select top candidates within threshold
+                best_object = None
+                best_score = -float('inf')
+                if best_object is None:
+                    # Overlap check: skip if overlaps with any already assigned detection
+                    for obj_candidate, score_candidate in scored_objects:
+                        # Use expanded version for overlap
+                        abs_x, abs_y, w, h = _expand_detection(obj_candidate)
+                        candidate_box = (abs_x, abs_y, w, h)
+                        overlaps = False
+                        print(f"Assigned boxes: {assigned_boxes}")
+                        if len(assigned_boxes)>0:
+                            for assigned_box in assigned_boxes:
+                                overlap = compute_overlap(candidate_box, assigned_box)
+                                if overlap > overlap_threshold:
+                                    overlaps = True
+                                    print(f"Overlap is {overlap}, looking for another detection")
+                                    break
+                                print(f"Overlap is {overlap}, not high enough")
+                        if not overlaps:
+                            best_object = obj_candidate
+                            best_score = score_candidate
+                            break
+                if best_object is None:
+                    # If all candidates overlap, skip assignment
+                    print(f"No non-overlapping detection found for {troop_key}")
+                    continue
+                
+                abs_x, abs_y, w,h = _expand_detection(best_object)
                 label = f"{player}_{troop}"
                 best_object['card_type'] = troop
                 best_object['player'] = player
                 best_object['x'] = abs_x
                 best_object['y'] = abs_y
-                best_object['w'] = w  # Update with expanded width
-                best_object['h'] = h  # Update with expanded height
-                best_object['area'] = w * h  # Update area calculation
+                best_object['w'] = w
+                best_object['h'] = h
+                best_object['area'] = w * h
                 cv2.rectangle(debug_frame, (abs_x, abs_y),
                               (abs_x + w, abs_y + h), (0, 0, 255), 3)
                 cv2.putText(debug_frame, label, (abs_x, abs_y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 cv2.putText(debug_frame, f"Area:{best_object.get('area', 0):.0f} Method:{best_object.get('method', '?')}", (
                     abs_x, abs_y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                print(
-                    f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object.get('area', 0):.0f} via {best_object.get('method', '?')}")
+                print(f"FINAL DETECTION: {label} at ({abs_x},{abs_y}) area={best_object.get('area', 0):.0f} via {best_object.get('method', '?')}")
                 self.latest_detections.append(best_object)
+                assignments_summary.append({
+                    'troop': troop,
+                    'player': player,
+                    'coords': (abs_x, abs_y, w, h),
+                    'score': best_score,
+                    'method': best_object.get('method', '?')
+                })
+                box_tuple = (best_object['x'], best_object['y'], best_object['w'], best_object['h'])
+                current_frame_boxes.append(box_tuple)
+                assigned_boxes.append(box_tuple)  # Add to assigned_boxes for subsequent overlap checks
+                # Remove assigned detection from pool
+                remaining_objects.remove(best_object)
+        # Print summary after all assignments
+
+        if assignments_summary:
+            print("=== Troop Assignment Summary ===")
+            for a in assignments_summary:
+                print(f"Troop: {a['player']}_{a['troop']} | Detection: {a['coords']} | Score: {a['score']:.3f} | Method: {a['method']}")
+            print("===============================")
+        
         self.previous_arena_frame = frame.copy()
+        # At the end, update assigned_boxes to current frame's assignments
+        self.assigned_boxes = current_frame_boxes
 
         # Print the boxes and their scores
 
