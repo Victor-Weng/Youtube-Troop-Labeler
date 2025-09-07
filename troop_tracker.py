@@ -476,7 +476,7 @@ class TroopTracker:
     def set_arena_background_color(self, color: Tuple[float, float, float]):
         """Set the arena background color for building background matching"""
         self.arena_background_color = np.array(color)
-        print(f"TroopTracker: Arena background color set to {color}")
+    # print(f"TroopTracker: Arena background color set to {color}")  # silenced
 
     def _load_troop_config(self) -> Dict:
         """Load troop configuration from JSON file"""
@@ -486,7 +486,8 @@ class TroopTracker:
                 with open(config_path, 'r') as f:
                     return json.load(f)
         except Exception as e:
-            print(f"Warning: Could not load troop config: {e}")
+            # print(f"Warning: Could not load troop config: {e}")
+            pass
         return {}
 
     def track_existing_troops(self, current_frame: np.ndarray, previous_frame: np.ndarray, frame_number: int) -> List[Dict]:
@@ -543,7 +544,7 @@ class TroopTracker:
             new_det={'x':d['x'],'y':d['y'],'w':d['w'],'h':d['h'],'center_x':d['x']+d['w']/2,'center_y':d['y']+d['h']/2,'area':d['w']*d['h'],'method':'DIFF_JUMP','card_type':track.card_type,'player':track.player,'confidence':1.0}
             track.update_position(new_det, track.last_seen_frame+1, is_real_detection=True)
             track.velocity=np.array([0.0,0.0])
-            print(f"[DIFF JUMP] Track {track.track_id} jumped overlap={best[2]:.2f} size_sim={best[1]:.2f} new_box=({d['x']},{d['y']},{d['w']},{d['h']})")
+            # print(f"[DIFF JUMP] Track {track.track_id} jumped overlap={best[2]:.2f} size_sim={best[1]:.2f} new_box=({d['x']},{d['y']},{d['w']},{d['h']})")  # silenced
 
     def update(self, detections: List[Dict], frame_number: int, current_frame: np.ndarray = None, previous_frame: np.ndarray = None, expecting_new_cards: bool = False, diff_detections: List[Dict]=None) -> List[TroopTrack]:
         """
@@ -559,9 +560,13 @@ class TroopTracker:
         Returns:
             List of active tracks
         """
-        # CRITICAL FIX: Remove stale tracks FIRST, before any association happens
+        # Normalize diff detections list
+        diff_detections = diff_detections or []
+
+        # 1. Remove stale tracks FIRST
         initial_count = len(self.tracks)
-        active_tracks = []
+        active_tracks: List[TroopTrack] = []
+        removed_events = []  # (track_id, last_seen_frame)
 
         for track in self.tracks:
             should_remove = False
@@ -569,95 +574,74 @@ class TroopTracker:
             # Remove if stale (includes duration and background matching)
             if track.is_stale(frame_number, self.max_missing_frames, self.troop_config, current_frame, self.arena_background_color):
                 should_remove = True
-
             # Remove if confidence is low for last 2 positions
             elif len(track.positions) >= 2:
-                last_confidences = [p.get('confidence', 1.0)
-                                    for p in track.positions[-2:]]
+                last_confidences = [p.get('confidence', 1.0) for p in track.positions[-2:]]
                 if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
                     should_remove = True
 
             if not should_remove:
                 active_tracks.append(track)
+            else:
+                removed_events.append((track.track_id, track.last_seen_frame))
 
-        # Update tracks list BEFORE association
-        self.tracks = active_tracks
-        if len(self.tracks) != initial_count:
-            pass  # Track removal happened
+        self.tracks = active_tracks  # Update list after removal
 
-        # AFTER stale track removal, add optical flow tracking for remaining active tracks
-        tracking_detections = []
+        # 2. Optical flow tracking on remaining active tracks
+        tracking_detections: List[Dict] = []
         if previous_frame is not None:
-            # Only track ACTIVE tracks (stale ones already removed)
             for track in self.tracks:
                 if not track.positions:
                     continue
-
-                # Try to track this troop's position using optical flow
-                tracked_pos = track.track_position(
-                    current_frame, previous_frame, frame_number)
-
+                tracked_pos = track.track_position(current_frame, previous_frame, frame_number)
                 if tracked_pos:
                     tracking_detections.append(tracked_pos)
 
-        # Combine detections based on whether we're expecting new cards
+        # 3. Decide which detections to use
         if expecting_new_cards:
-            # Use both new detections and optical flow tracking
             all_detections = detections + tracking_detections
-            # print(
-            #    f"EXPECTING NEW CARDS: Using {len(detections)} new + {len(tracking_detections)} tracking = {len(all_detections)} total detections")
         else:
-            # Only use optical flow tracking, ignore new detections
-            all_detections = tracking_detections
-            # print(
-            #    f"NOT EXPECTING CARDS: Ignoring {len(detections)} new detections, using only {len(tracking_detections)} tracking detections")
+            all_detections = tracking_detections  # ignore raw detections if not expecting new cards
 
-        # Convert detections to standardized format
+        # 4. Standardize detections
         standardized_detections = []
-        for det in all_detections:  # Use all_detections (new + tracking)
+        for det in all_detections:
             center_x = det['x'] + det['w'] / 2
             center_y = det['y'] + det['h'] / 2
             standardized_detections.append({
                 'x': det['x'], 'y': det['y'], 'w': det['w'], 'h': det['h'],
                 'center_x': center_x, 'center_y': center_y,
-                'area': det['w']*det['h'],
+                'area': det['w'] * det['h'],
                 'card_type': det.get('card_type', 'Unknown'),
                 'player': det.get('player', 'Unknown')
             })
 
-        # Predict where existing tracks should be
+        # 5. Predict & associate
         self._predict_tracks(frame_number)
+        unmatched_detections = self._associate_detections(standardized_detections, frame_number)
 
-        # Associate detections with existing tracks
-        unmatched_detections = self._associate_detections(
-            standardized_detections, frame_number)
-
-        # Create new tracks for unmatched detections ONLY if expecting new cards
+        # 6. Create new tracks only if expecting new cards
         if expecting_new_cards:
             for detection in unmatched_detections:
-                new_track = TroopTrack(
-                    self.next_track_id, detection, frame_number)
+                new_track = TroopTrack(self.next_track_id, detection, frame_number)
                 self.tracks.append(new_track)
-                # Silenced track creation log
-                pass
                 self.next_track_id += 1
-        else:
-            if unmatched_detections:
-                # Silenced suppression notice
-                pass
 
-        # Apply diff-based removal before optical flow
-        pruned=[]
-        for t in self.tracks:
-            if self.diff_should_remove(t,diff_detections):
-                continue
-            pruned.append(t)
-        self.tracks=pruned
-        # Allow diff jump before optical flow association
+        # 7. Diff-based pruning
         if diff_detections:
+            pruned = []
             for t in self.tracks:
-                self.diff_try_jump(t,diff_detections)
+                if self.diff_should_remove(t, diff_detections):
+                    continue
+                pruned.append(t)
+            self.tracks = pruned
 
+            # Diff jump adjustments
+            for t in self.tracks:
+                self.diff_try_jump(t, diff_detections)
+
+        # 8. Expose removed events for external consumers (dataset saver)
+        self.removed_tracks_for_cleanup = removed_events
         return self.tracks
 
     def _predict_tracks(self, frame_number: int):

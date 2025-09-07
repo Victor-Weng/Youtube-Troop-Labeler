@@ -88,7 +88,8 @@ class Actions:
         # Use exact coordinates from config instead of dividing by 4
         # Optional notice when capturing exactly one specific slot
         if slots is not None and isinstance(slots, (list, tuple)) and len(slots) == 1:
-            print(f"[CARD CAPTURE] Capturing only slot {slots[0]} for {player_type}")
+            # print(f"[CARD CAPTURE] Capturing only slot {slots[0]} for {player_type}")
+            pass
 
         for i, (x, y, w, h) in enumerate(coords):
             if slots is not None and i not in slots:
@@ -119,7 +120,8 @@ class Actions:
                     if location:
                         return i
                 except Exception as e:
-                    print(f"Error locating {image_file}: {e}")
+                    # print(f"Error locating {image_file}: {e}")
+                    pass
             return 0
         elif self.os_type == "Windows":
             target = (225, 128, 229)
@@ -155,18 +157,19 @@ class Actions:
             self.current_enemy_card_positions = card_positions
 
     def card_play(self, x, y, card_index):
-        print(f"Playing card {card_index} at position ({x}, {y})")
+        # print(f"Playing card {card_index} at position ({x}, {y})")
         if card_index in self.card_keys:
             key = self.card_keys[card_index]
-            print(f"Pressing key: {key}")
+            # print(f"Pressing key: {key}")
             pyautogui.press(key)
             time.sleep(0.2)
-            print(f"Moving mouse to: ({x}, {y})")
+            # print(f"Moving mouse to: ({x}, {y})")
             pyautogui.moveTo(x, y, duration=0.2)
-            print("Clicking")
+            # print("Clicking")
             pyautogui.click()
         else:
-            print(f"Invalid card index: {card_index}")
+            # print(f"Invalid card index: {card_index}")
+            pass
 
     def click_battle_start(self):
         button_image = os.path.join(
@@ -178,8 +181,8 @@ class Actions:
 
         while True:
             for confidence in confidences:
-                print(
-                    f"Looking for battle start button (confidence: {confidence})")
+                # print(
+                #     f"Looking for battle start button (confidence: {confidence})")
                 try:
                     location = pyautogui.locateOnScreen(
                         button_image,
@@ -188,7 +191,7 @@ class Actions:
                     )
                     if location:
                         x, y = pyautogui.center(location)
-                        print(f"Found battle start button at ({x}, {y})")
+                        # print(f"Found battle start button at ({x}, {y})")
                         pyautogui.moveTo(x, y, duration=0.2)
                         pyautogui.click()
                         return True
@@ -196,7 +199,7 @@ class Actions:
                     pass
 
             # If button not found, click to clear screens
-            print("Button not found, clicking to clear screens...")
+            # print("Button not found, clicking to clear screens...")
             pyautogui.moveTo(1705, 331, duration=0.2)
             pyautogui.click()
             time.sleep(1)
@@ -209,7 +212,7 @@ class Actions:
             winner_region = (1510, 121, 1678-1510, 574-121)
 
             for confidence in confidences:
-                print(f"\nTrying detection with confidence: {confidence}")
+                # print(f"\nTrying detection with confidence: {confidence}")
                 winner_location = None
 
                 # Try to find Winner in region
@@ -218,23 +221,25 @@ class Actions:
                         winner_img, confidence=confidence, grayscale=True, region=winner_region
                     )
                 except Exception as e:
-                    print(f"Error locating Winner: {str(e)}")
+                    # print(f"Error locating Winner: {str(e)}")
+                    pass
 
                 if winner_location:
                     _, y = pyautogui.center(winner_location)
-                    print(
-                        f"Found 'Winner' at y={y} with confidence {confidence}")
+                    # print(
+                    #     f"Found 'Winner' at y={y} with confidence {confidence}")
                     result = "victory" if y > 402 else "defeat"
                     time.sleep(3)
                     # Click the "Play Again" button at a fixed coordinate (adjust as needed)
                     play_again_x, play_again_y = 1522, 913  # Example coordinates
-                    print(
-                        f"Clicking Play Again at ({play_again_x}, {play_again_y})")
+                    # print(
+                    #     f"Clicking Play Again at ({play_again_x}, {play_again_y})")
                     pyautogui.moveTo(play_again_x, play_again_y, duration=0.2)
                     pyautogui.click()
                     return result
         except Exception as e:
-            print(f"Error in game end detection: {str(e)}")
+            # print(f"Error in game end detection: {str(e)}")
+            pass
         return None
 
     def detect_match_over(self):
@@ -248,8 +253,9 @@ class Actions:
                     matchover_img, confidence=confidence, grayscale=True, region=region
                 )
                 if location:
-                    print("Match over detected!")
+                    # print("Match over detected!")
                     return True
             except Exception as e:
-                print(f"Error locating matchover.png: {e}")
+                # print(f"Error locating matchover.png: {e}")
+                pass
         return False

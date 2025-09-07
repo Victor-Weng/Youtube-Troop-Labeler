@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from troop_tracker import TroopTracker
 import config_new as config
 import cv2
+from dataset_saver import DatasetSaver
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,36 +15,35 @@ load_dotenv()
 
 class TroopDetector:
     def __init__(self):
+        # ...existing code...
         self.logger = logging.getLogger(__name__)
         self.card_model = self.setup_card_roboflow()
         self.troop_model = self.setup_troop_roboflow()
-
-        # Initialize Actions for card capture
         from Actions import Actions
         self.actions = Actions()
-
-        # Card state
+        # ...existing code...
         self.card_states = []
-        self.ally_unknown_streak = [0]*4 # amount of unknown detections. 1 = maybe misread from animation 1+ = continue
+        self.ally_unknown_streak = [0]*4
         self.enemy_unknown_streak = [0]*4
-
-        # Arena tracking
+        # ...existing code...
         self.arena_background_color = None
         self.previous_arena_frame = None
         self.current_full_frame = None
         self.previous_full_frame = None
         self.bg_subtractor = None
-
-        # If a match is happening
         self.is_game = False
         self.is_game_counter = 0
         self.is_not_game_counter = 0
-
-        # Troop tracking
-        self.troop_tracker = TroopTracker(
-            max_distance=80.0, max_missing_frames=600)
-        # Store assigned boxes from last frame
+        self.troop_tracker = TroopTracker(max_distance=80.0, max_missing_frames=600)
         self.assigned_boxes = []
+        # NEW: instantiate dataset saver (configurable via config if added later)
+        self.dataset_saver = DatasetSaver(
+            output_dir=config.DATASET_OUTPUT_DIR,
+            shard_max_images=config.DATASET_SHARD_MAX_IMAGES,
+            webp_quality=config.DATASET_WEBP_QUALITY,
+            delay_frames=config.DATASET_DELAY_FRAMES,
+            tracking_region=config.TRACKING_REGION
+        )
 
     def detect_game_active(self, frame):
         # extract region of interest
@@ -684,20 +684,16 @@ class TroopDetector:
             return False
 
     def process_frame(self, frame: np.ndarray, frame_number: int) -> Tuple[List, np.ndarray, List]:
-        """Process single frame and detect cards"""
+        # REPLACE BLOCK START
         # Per-slot change detection
         ally_changed = self.detect_changed_slots(frame, 'ally')
         enemy_changed = self.detect_changed_slots(frame, 'enemy')
-
-        # Initialize from previous state or Unknowns
         if self.card_states:
             ally_cards = self.card_states[-1]["ally"].copy()
             enemy_cards = self.card_states[-1]["enemy"].copy()
         else:
             ally_cards = ["Unknown"]*4
             enemy_cards = ["Unknown"]*4
-
-        # Run detection only on changed slots
         if ally_changed:
             detected = self.detect_hand_cards_slots(frame, 'ally', slots=ally_changed)
             for idx, slot in enumerate(ally_changed):
@@ -706,153 +702,86 @@ class TroopDetector:
             detected = self.detect_hand_cards_slots(frame, 'enemy', slots=enemy_changed)
             for idx, slot in enumerate(enemy_changed):
                 enemy_cards[slot] = detected[idx]
-
-        # Check if any of the cards are "None": do not update card_states because likely card overlapping another
-        # Only skip if this is the first time (incase card REALLY is unknown), or else reset counter
         for idx, card in enumerate(ally_cards):
             if card == "Unknown" and self.ally_unknown_streak[idx] == 0:
                 self.logger.info(f"Ally detection on {idx}, 0 indexed, returned an empty detection, skipping due to bad read.")
                 ally_cards = self.card_states[-1]["ally"]
                 self.ally_unknown_streak[idx] += 1
             elif card != "Unknown":
-                self.ally_unknown_streak[idx] = 0 # reset for this card once a known card is found
-
+                self.ally_unknown_streak[idx] = 0
         for idx, card in enumerate(enemy_cards):
             if card == "Unknown" and self.enemy_unknown_streak[idx] == 0:
                 self.logger.info(f"Enemy detection on {idx}, 0 indexed, returned an empty detection, skipping due to bad read.")
                 enemy_cards = self.card_states[-1]["enemy"]
                 self.enemy_unknown_streak[idx] += 1
             elif card != "Unknown":
-                self.enemy_unknown_streak[idx] = 0 # reset for this card once a known card is found
-
-        # Update card states
+                self.enemy_unknown_streak[idx] = 0
         self.update_card_states(frame_number, ally_cards, enemy_cards)
-
-        # Check card states
         ally_placed = self.check_card_changes("ally")
         enemy_placed = self.check_card_changes("enemy")
-
-        # --- Troop delay logic (streamlined, before detection) ---
         if not hasattr(self, 'troop_delay_buffer'):
             self.troop_delay_buffer = {}
         delay_config = {}
         import json
         with open('troop_bias_config.json', 'r') as f:
             troop_config = json.load(f)["troops"]
-
         FPS = config.FPS
         skip = config.FRAME_SKIP
         for troop_name, info in troop_config.items():
-            # frames = (frames/second * second)/skip
-            delay_config[troop_name] = np.floor(
-                (FPS * info.get("delay", 0))/skip)
-
-        # Buffer new placements and decrement all delay counters every frame
+            delay_config[troop_name] = np.floor((FPS * info.get("delay", 0))/skip)
         all_changes = []
-
-        # Add new troops to buffer if not present, storing player info and slot index
-        # Also decrement troops with an unknown streak of 1 to adjust for the missed frame
         for troop in (ally_placed or []):
             if troop not in self.troop_delay_buffer:
-                # Find slot index for this troop in ally_cards
                 try:
                     slot_idx = self.card_states[-1]["ally"].index(troop)
                 except (ValueError, IndexError):
                     slot_idx = -1
-
-                # Check unknown streak
                 if self.ally_unknown_streak == 1:
-                    # max of 0 and one less to avoid a negative buffer
-                    self.troop_delay_buffer[troop] = {
-                        'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'ally', 'slot_idx': slot_idx}
+                    self.troop_delay_buffer[troop] = {'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'ally', 'slot_idx': slot_idx}
                 else:
-                    self.troop_delay_buffer[troop] = {
-                        'delay': delay_config.get(troop, 0), 'player': 'ally', 'slot_idx': slot_idx}
-
+                    self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'ally', 'slot_idx': slot_idx}
         for troop in (enemy_placed or []):
             if troop not in self.troop_delay_buffer:
                 try:
                     slot_idx = self.card_states[-1]["enemy"].index(troop)
                 except (ValueError, IndexError):
                     slot_idx = -1
-                
-                # Check unknown streak
                 if self.enemy_unknown_streak == 1:
-                    # max of 0 and one less to avoid a negative buffer
-                    self.troop_delay_buffer[troop] = {
-                        'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'enemy', 'slot_idx': slot_idx}
+                    self.troop_delay_buffer[troop] = {'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'enemy', 'slot_idx': slot_idx}
                 else:
-                    self.troop_delay_buffer[troop] = {
-                        'delay': delay_config.get(troop, 0), 'player': 'enemy', 'slot_idx': slot_idx}
-                    
-        # Decrement all delay counters and release troops when ready
+                    self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'enemy', 'slot_idx': slot_idx}
         for troop in list(self.troop_delay_buffer.keys()):
             entry = self.troop_delay_buffer[troop]
             if entry['delay'] > 0:
-                # print(f"[DELAY] Withholding {troop} ({entry['player']}): {entry['delay']} frames left")
                 entry['delay'] -= 1
                 self.troop_delay_buffer[troop] = entry
             else:
-                # CRITICAL FIX: Check if this troop type already has active tracks before creating new detection
-                existing_tracks = [track for track in self.troop_tracker.tracks
-                                   if track.card_type.lower() == troop.lower() and track.player == entry['player']]
-
-                # Also check if any existing tracks are about to be removed (high bg_match_count for buildings)
+                existing_tracks = [track for track in self.troop_tracker.tracks if track.card_type.lower() == troop.lower() and track.player == entry['player']]
                 stable_tracks = []
                 for track in existing_tracks:
-                    is_about_to_be_removed = False
-
-                    # Check if this track is close to being removed due to background matching
-                    # Close to removal threshold (3)
-                    if hasattr(track, 'bg_match_count') and track.bg_match_count >= 2:
-                        is_about_to_be_removed = True
-                        # about to be removed logging suppressed
-                        pass
-
+                    is_about_to_be_removed = hasattr(track,'bg_match_count') and track.bg_match_count >= 2
                     if not is_about_to_be_removed:
                         stable_tracks.append(track)
-
                 if stable_tracks:
-                    # suppression log suppressed
-                    pass
-                    # Remove from buffer without creating detection
                     del self.troop_delay_buffer[troop]
                 else:
-                    all_changes.append(
-                        {'troop': troop, 'player': entry['player']})
+                    all_changes.append({'troop': troop, 'player': entry['player']})
                     del self.troop_delay_buffer[troop]
-                    # release log suppressed
-                    pass
-        if all_changes:
-            pass  # ready for detection
-
-        # Always track arena changes (tracking region always visible)
-        debug_frame = self.track_arena_changes(
-            frame, all_changes, ally_placed, enemy_placed)
-
-        # Prepare detections for tracker
+        debug_frame = self.track_arena_changes(frame, all_changes, ally_placed, enemy_placed)
         detections_for_tracker = []
-
-        # Add all new detections from card placements
         if hasattr(self, 'latest_detections') and self.latest_detections:
             detections_for_tracker.extend(self.latest_detections)
-
-        # Determine if we're expecting new cards (i.e., if all_changes has entries)
         expecting_new_cards = bool(all_changes)
-
-        # Update tracker with detections and let it handle optical flow tracking internally
-        active_tracks = self.troop_tracker.update(
-            detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame, expecting_new_cards=expecting_new_cards, diff_detections=getattr(self,'diff_abs_objects',[]))
-
-        # Store current frame for next iteration
+        active_tracks = self.troop_tracker.update(detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame, expecting_new_cards=expecting_new_cards, diff_detections=getattr(self,'diff_abs_objects',[]))
         self.previous_full_frame = frame.copy()
-
-        # ALWAYS draw tracking visualization to show persistent squares
-        # Get current troop positions for output
         debug_frame = self.troop_tracker.draw_tracks(debug_frame, frame_number)
         detected_objects = self.troop_tracker.get_active_troops()
-
-        # Return detected objects for compatibility
         placement_events = []
-
+        # NEW: dataset saver hook
+        self.dataset_saver.handle_frame(frame_number, frame, self.is_game, self.troop_tracker.tracks, getattr(self.troop_tracker,'removed_tracks_for_cleanup',[]))
         return detected_objects, debug_frame, placement_events
+        # REPLACE BLOCK END
+
+    def close(self):
+        if hasattr(self, 'dataset_saver') and self.dataset_saver:
+            self.dataset_saver.close()

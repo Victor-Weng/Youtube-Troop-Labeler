@@ -6,10 +6,10 @@ Configuration for Clash Royale Troop Detection Tool
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 150  # 247.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 6  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
-DELAY = 0.2  # s per frame delay
+DELAY = 0.1  # s per frame delay
 PIXEL_DIFF_THRESHOLD = 120
 MIN_OBJECT_SIZE = 1200  # Much larger minimum (filters out small movements)
 MAX_OBJECT_SIZE = 10000  # Smaller maximum (focus on troop-sized objects)
@@ -49,7 +49,7 @@ MAX_TRACKING_FRAMES = 60  # How long to track an object
 TRACKING_CONFIDENCE = 0.9  # Minimum confidence to keep tracking
 MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
 MAX_DISTANCE = 150
-TRACKING_REGION = (33, 304, 646, 747)  # (x, y, w, h) Arena region for tracking
+TRACKING_REGION = (33, 304, 648, 779)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
 MIN_ACTIVITY_FRAMES = 1 # Remove tracks after minimal movement in these frames
 MIN_MOVEMENT = 1.0 # Less than 1,0 pixels per frame on average
@@ -76,13 +76,28 @@ IMAGES_DIR = './output_dataset/images/'
 LABELS_DIR = './output_dataset/labels/'
 SAVE_IMAGES = False  # Set to False to disable image saving during testing
 
-# YouTube URLs to process (or set TEST_VIDEO_PATH for local file)
-YOUTUBE_URLS = [
-    "https://www.youtube.com/watch?v=fSRN4bQcoDo&ab_channel=TVroyale"
-]
-# "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale"
-# "https://www.youtube.com/watch?v=Px0O-NFvfx8&ab_channel=Ryley-ClashRoyale",
-# "https://www.youtube.com/watch?v=R3A17nCHrDg&ab_channel=Ryley-ClashRoyale",
+import os as _os
+
+# YouTube URLs file. Each non-empty, non-comment line is a URL.
+YOUTUBE_URLS_FILE = 'youtube_urls.txt'
+
+def _load_youtube_urls(path: str):
+    urls = []
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                urls.append(line)
+    except FileNotFoundError:
+        pass
+    return urls
+
+YOUTUBE_URLS = _load_youtube_urls(YOUTUBE_URLS_FILE)
+if not YOUTUBE_URLS:
+    # Fallback single URL (can be removed once file is always provided)
+    YOUTUBE_URLS = ["https://www.youtube.com/watch?v=fSRN4bQcoDo&ab_channel=TVroyale"]
 
 # For testing with local video file, set this path and YOUTUBE_URLS to empty list
 TEST_VIDEO_PATH = None  # "test_video.mp4"
@@ -145,3 +160,20 @@ ACTIVE_COLORS = [(160.67, 46.60, 154.42), (160.67, 70.60, 154.42)]
 ACTIVE_COLOR_THRESHOLD = 35.0
 # Amount of frames in a row to detect if game is active or not.
 ACTIVE_STABLE = 3
+
+# Early stop of active game capture
+# If stop_active_early is True, after a continuous active period reaches stop_active_early_time (seconds),
+# the system will stop full processing for the remainder of that active streak (only polling for activity changes),
+# then resume normal processing when a new active streak begins.
+STOP_ACTIVE_EARLY = True
+STOP_ACTIVE_EARLY_TIME = 130.0  # seconds
+# Delay used while skipping frames during early-stop phase (polling only)
+STOP_ACTIVE_EARLY_DELAY = 0.02
+# Remaining portion of regulation (e.g., 180s total regulation - early portion). Used for fast skip before reduced-delay polling.
+STOP_ACTIVE_EARLY_SKIP_SECONDS = max(0.0, 180.0 - STOP_ACTIVE_EARLY_TIME)
+
+# Dataset capture settings
+DATASET_OUTPUT_DIR = 'output_dataset'
+DATASET_SHARD_MAX_IMAGES = 1500
+DATASET_WEBP_QUALITY = 90
+DATASET_DELAY_FRAMES = 2  # delayed invalidation window
