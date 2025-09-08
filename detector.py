@@ -34,7 +34,8 @@ class TroopDetector:
         self.is_game = False
         self.is_game_counter = 0
         self.is_not_game_counter = 0
-        self.troop_tracker = TroopTracker(max_distance=80.0, max_missing_frames=600)
+        self.troop_tracker = TroopTracker(
+            max_distance=80.0, max_missing_frames=600)
         self.assigned_boxes = []
         # NEW: instantiate dataset saver (configurable via config if added later)
         self.dataset_saver = DatasetSaver(
@@ -44,6 +45,22 @@ class TroopDetector:
             delay_frames=config.DATASET_DELAY_FRAMES,
             tracking_region=config.TRACKING_REGION
         )
+
+    def reset_tracks(self):
+        """Reset tracking-related state for a new video to avoid carry-over."""
+        try:
+            self.troop_tracker = TroopTracker(
+                max_distance=80.0, max_missing_frames=600)
+        except Exception:
+            pass
+        self.assigned_boxes = []
+        # Do not reset dataset_saver so shards continue accumulating
+        self.previous_full_frame = None
+        self.current_full_frame = None
+        # Preserve game detection counters; next frames will re-evaluate
+        self.is_game = False
+        self.is_game_counter = 0
+        self.is_not_game_counter = 0
 
     def detect_game_active(self, frame):
         # extract region of interest
@@ -93,8 +110,10 @@ class TroopDetector:
                 track_x, track_y, _, _ = config.TRACKING_REGION
                 x, y = obj['x'] + track_x, obj['y'] + track_y
             aspect_ratio = h / w if w > 0 else 0
-            size_score = 1.0 - abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
-            ar_score = 1.0 - abs(aspect_ratio - troop_info.get('aspect_ratio', 1.0))/2.0
+            size_score = 1.0 - \
+                abs(area/1000.0 - troop_info.get('size_rank', 1))/10.0
+            ar_score = 1.0 - abs(aspect_ratio -
+                                 troop_info.get('aspect_ratio', 1.0))/2.0
             pos_score = 0.5
             for pos in troop_info.get('biased_positions', []):
                 if isinstance(pos, str) and hasattr(pc, pos.upper()):
@@ -113,39 +132,43 @@ class TroopDetector:
             abs_x = track_x + obj['x']
             abs_y = track_y + obj['y']
             region_crop = frame[abs_y:abs_y+h, abs_x:abs_x+w]
-            avg_color = np.mean(region_crop, axis=(0,1))
-            side_color = np.array([0,0,0])
-            if(player=='ally'):
+            avg_color = np.mean(region_crop, axis=(0, 1))
+            side_color = np.array([0, 0, 0])
+            if (player == 'ally'):
                 side_color = np.array(config.ALLY_BLUE)
-            elif(player=='enemy'):
+            elif (player == 'enemy'):
                 side_color = np.array(config.ENEMY_RED)
             if len(np.array(troop_info.get('average_color'))) == 3:
                 w1 = 1
                 w2 = 0.5
                 w3 = 1
                 target_color = (
-                    w1 * np.array(troop_info.get('average_color'))[::-1] + 
-                    w2 * np.array(self.arena_background_color) + 
+                    w1 * np.array(troop_info.get('average_color'))[::-1] +
+                    w2 * np.array(self.arena_background_color) +
                     w3 * np.array(side_color)
                 ) / (w1 + w2 + w3)
             else:
                 w1 = 0.5
                 w2 = 0.8
                 target_color = (
-                    w1 * np.array(self.arena_background_color) + 
+                    w1 * np.array(self.arena_background_color) +
                     w2 * np.array(side_color)
                 ) / (w1 + w2)
-            max_color_distance = np.linalg.norm([255, 255, 255])/2 
-            color_distance_reg = np.linalg.norm(np.array(target_color) - np.array(avg_color))
-            color_score_reg = 1.0 - min(color_distance_reg / max_color_distance, 1.0)
+            max_color_distance = np.linalg.norm([255, 255, 255])/2
+            color_distance_reg = np.linalg.norm(
+                np.array(target_color) - np.array(avg_color))
+            color_score_reg = 1.0 - \
+                min(color_distance_reg / max_color_distance, 1.0)
             w1 = 1
             w2 = 0.7
             target_golden_color = (
-                    w1 * np.array(config.GOLDEN)[::-1] + 
-                    w2 * np.array(self.arena_background_color)
-                ) / (w1 + w2)
-            color_distance_golden = np.linalg.norm((target_golden_color) - np.array(avg_color))
-            color_score_golden = (1.0 - min(color_distance_golden / max_color_distance, 1.0))
+                w1 * np.array(config.GOLDEN)[::-1] +
+                w2 * np.array(self.arena_background_color)
+            ) / (w1 + w2)
+            color_distance_golden = np.linalg.norm(
+                (target_golden_color) - np.array(avg_color))
+            color_score_golden = (
+                1.0 - min(color_distance_golden / max_color_distance, 1.0))
             color_score = max(color_score_reg, color_score_golden)
             # print(f"Color score for detection: {color_score}, position: ({abs_x}, {abs_y}, {w}, {h})")
             # bias placements on the "right side" i.e. if not a tower troop then our side otherwise their side
@@ -399,7 +422,7 @@ class TroopDetector:
             unionArea = boxAArea + boxBArea - interArea
             # overlap ratio: intersection over union (IoU)
             return interArea / unionArea if unionArea > 0 else 0
-        
+
         # Expand detection boxes, also used by candidate box assignments to compute overlap on expansion
         def _expand_detection(object):
             abs_x = track_x + object['x']
@@ -423,8 +446,8 @@ class TroopDetector:
                 abs_y = min(1280 - h, abs_y)
                 # print(f"EXPANDED DETECTION: {troop} from {original_w}x{original_h} to {w}x{h} at ({abs_x},{abs_y})")
 
-            return abs_x, abs_y, w,h
-                
+            return abs_x, abs_y, w, h
+
         # Should be a clean version of just the last frame's detection
         assigned_boxes = self.assigned_boxes.copy()
         current_frame_boxes = []
@@ -472,9 +495,10 @@ class TroopDetector:
                         abs_x, abs_y, w, h = _expand_detection(obj_candidate)
                         candidate_box = (abs_x, abs_y, w, h)
                         overlaps = False
-                        if len(assigned_boxes)>0:
+                        if len(assigned_boxes) > 0:
                             for assigned_box in assigned_boxes:
-                                overlap = compute_overlap(candidate_box, assigned_box)
+                                overlap = compute_overlap(
+                                    candidate_box, assigned_box)
                                 if overlap > overlap_threshold:
                                     overlaps = True
                                     # print(f"Overlap is {overlap}, looking for another detection")
@@ -488,8 +512,8 @@ class TroopDetector:
                     # If all candidates overlap, skip assignment
                     # print(f"No non-overlapping detection found for {troop_key}")
                     continue
-                
-                abs_x, abs_y, w,h = _expand_detection(best_object)
+
+                abs_x, abs_y, w, h = _expand_detection(best_object)
                 label = f"{player}_{troop}"
                 best_object['card_type'] = troop
                 best_object['player'] = player
@@ -513,19 +537,22 @@ class TroopDetector:
                     'score': best_score,
                     'method': best_object.get('method', '?')
                 })
-                box_tuple = (best_object['x'], best_object['y'], best_object['w'], best_object['h'])
+                box_tuple = (best_object['x'], best_object['y'],
+                             best_object['w'], best_object['h'])
                 current_frame_boxes.append(box_tuple)
-                assigned_boxes.append(box_tuple)  # Add to assigned_boxes for subsequent overlap checks
+                # Add to assigned_boxes for subsequent overlap checks
+                assigned_boxes.append(box_tuple)
                 # Remove assigned detection from pool
                 remaining_objects.remove(best_object)
         # Print summary after all assignments
 
-        if assignments_summary:
-            print("=== Troop Assignment Summary ===")
-            for a in assignments_summary:
-                print(f"Troop: {a['player']}_{a['troop']} | Detection: {a['coords']} | Score: {a['score']:.3f} | Method: {a['method']}")
-            print("===============================")
-        
+        # if assignments_summary:
+        #     print("=== Troop Assignment Summary ===")
+        #     for a in assignments_summary:
+        #         print(
+        #             f"Troop: {a['player']}_{a['troop']} | Detection: {a['coords']} | Score: {a['score']:.3f} | Method: {a['method']}")
+        #     print("===============================")
+
         self.previous_arena_frame = frame.copy()
         # At the end, update assigned_boxes to current frame's assignments
         self.assigned_boxes = current_frame_boxes
@@ -599,12 +626,12 @@ class TroopDetector:
         else:
             coords = config.ENEMY_HAND_COORDS
         means = []
-        for (x,y,w,h) in coords:
+        for (x, y, w, h) in coords:
             crop = frame[y:y+h, x:x+w]
             if crop.size == 0:
-                means.append(np.array([0,0,0]))
+                means.append(np.array([0, 0, 0]))
             else:
-                means.append(np.mean(crop, axis=(0,1)))
+                means.append(np.mean(crop, axis=(0, 1)))
         return means
 
     def detect_changed_slots(self, frame, which, threshold=config.THRESHOLD):
@@ -616,7 +643,7 @@ class TroopDetector:
         if prev is None:
             changed = list(range(len(current_means)))  # first frame detect all
         else:
-            for i,(c,p) in enumerate(zip(current_means, prev)):
+            for i, (c, p) in enumerate(zip(current_means, prev)):
                 if np.linalg.norm(c - p) > threshold:
                     changed.append(i)
         setattr(self, attr, current_means)
@@ -626,17 +653,20 @@ class TroopDetector:
         try:
             CARD_DETECTION = os.getenv('CARD_DETECTION')
             if not CARD_DETECTION:
-                raise ValueError("CARD_DETECTION environment variable is not set. Please check your .env file.")
+                raise ValueError(
+                    "CARD_DETECTION environment variable is not set. Please check your .env file.")
             # Capture only requested slots (None means all)
-            card_data = self.actions.capture_individual_cards(frame=frame, player_type=which, slots=slots)
+            card_data = self.actions.capture_individual_cards(
+                frame=frame, player_type=which, slots=slots)
             card_paths = card_data['cards']
             results_per_slot = []
             for card_path in card_paths:
-                results = self.card_model.infer(card_path, model_id=CARD_DETECTION)
+                results = self.card_model.infer(
+                    card_path, model_id=CARD_DETECTION)
                 if isinstance(results, dict) and results:
                     confidence = results.get('confidence', 0.0)
                     predictions = results.get('predictions', [])
-                    if not predictions or len(predictions)==0:
+                    if not predictions or len(predictions) == 0:
                         results_per_slot.append("Unknown")
                     elif confidence <= config.DETECTION_CONFIDENCE:
                         results_per_slot.append("Unknown")
@@ -695,26 +725,36 @@ class TroopDetector:
             ally_cards = ["Unknown"]*4
             enemy_cards = ["Unknown"]*4
         if ally_changed:
-            detected = self.detect_hand_cards_slots(frame, 'ally', slots=ally_changed)
+            detected = self.detect_hand_cards_slots(
+                frame, 'ally', slots=ally_changed)
             for idx, slot in enumerate(ally_changed):
                 ally_cards[slot] = detected[idx]
         if enemy_changed:
-            detected = self.detect_hand_cards_slots(frame, 'enemy', slots=enemy_changed)
+            detected = self.detect_hand_cards_slots(
+                frame, 'enemy', slots=enemy_changed)
             for idx, slot in enumerate(enemy_changed):
                 enemy_cards[slot] = detected[idx]
+        # Robust per-slot Unknown handling: only revert that slot if we have a prior state
         for idx, card in enumerate(ally_cards):
-            if card == "Unknown" and self.ally_unknown_streak[idx] == 0:
-                self.logger.info(f"Ally detection on {idx}, 0 indexed, returned an empty detection, skipping due to bad read.")
-                ally_cards = self.card_states[-1]["ally"]
+            if card == "Unknown":
+                if self.ally_unknown_streak[idx] == 0 and self.card_states:
+                    # Revert just this slot to previous known value
+                    prev_card = self.card_states[-1]["ally"][idx]
+                    self.logger.info(
+                        f"Ally detection on {idx}, 0 indexed, returned an empty detection, reverting slot to previous '{prev_card}'.")
+                    ally_cards[idx] = prev_card
                 self.ally_unknown_streak[idx] += 1
-            elif card != "Unknown":
+            else:
                 self.ally_unknown_streak[idx] = 0
         for idx, card in enumerate(enemy_cards):
-            if card == "Unknown" and self.enemy_unknown_streak[idx] == 0:
-                self.logger.info(f"Enemy detection on {idx}, 0 indexed, returned an empty detection, skipping due to bad read.")
-                enemy_cards = self.card_states[-1]["enemy"]
+            if card == "Unknown":
+                if self.enemy_unknown_streak[idx] == 0 and self.card_states:
+                    prev_card = self.card_states[-1]["enemy"][idx]
+                    self.logger.info(
+                        f"Enemy detection on {idx}, 0 indexed, returned an empty detection, reverting slot to previous '{prev_card}'.")
+                    enemy_cards[idx] = prev_card
                 self.enemy_unknown_streak[idx] += 1
-            elif card != "Unknown":
+            else:
                 self.enemy_unknown_streak[idx] = 0
         self.update_card_states(frame_number, ally_cards, enemy_cards)
         ally_placed = self.check_card_changes("ally")
@@ -728,7 +768,8 @@ class TroopDetector:
         FPS = config.FPS
         skip = config.FRAME_SKIP
         for troop_name, info in troop_config.items():
-            delay_config[troop_name] = np.floor((FPS * info.get("delay", 0))/skip)
+            delay_config[troop_name] = np.floor(
+                (FPS * info.get("delay", 0))/skip)
         all_changes = []
         for troop in (ally_placed or []):
             if troop not in self.troop_delay_buffer:
@@ -737,9 +778,11 @@ class TroopDetector:
                 except (ValueError, IndexError):
                     slot_idx = -1
                 if self.ally_unknown_streak == 1:
-                    self.troop_delay_buffer[troop] = {'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'ally', 'slot_idx': slot_idx}
+                    self.troop_delay_buffer[troop] = {'delay': max(
+                        0, delay_config.get(troop, 0)-1), 'player': 'ally', 'slot_idx': slot_idx}
                 else:
-                    self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'ally', 'slot_idx': slot_idx}
+                    self.troop_delay_buffer[troop] = {'delay': delay_config.get(
+                        troop, 0), 'player': 'ally', 'slot_idx': slot_idx}
         for troop in (enemy_placed or []):
             if troop not in self.troop_delay_buffer:
                 try:
@@ -747,38 +790,46 @@ class TroopDetector:
                 except (ValueError, IndexError):
                     slot_idx = -1
                 if self.enemy_unknown_streak == 1:
-                    self.troop_delay_buffer[troop] = {'delay': max(0,delay_config.get(troop, 0)-1), 'player': 'enemy', 'slot_idx': slot_idx}
+                    self.troop_delay_buffer[troop] = {'delay': max(0, delay_config.get(
+                        troop, 0)-1), 'player': 'enemy', 'slot_idx': slot_idx}
                 else:
-                    self.troop_delay_buffer[troop] = {'delay': delay_config.get(troop, 0), 'player': 'enemy', 'slot_idx': slot_idx}
+                    self.troop_delay_buffer[troop] = {'delay': delay_config.get(
+                        troop, 0), 'player': 'enemy', 'slot_idx': slot_idx}
         for troop in list(self.troop_delay_buffer.keys()):
             entry = self.troop_delay_buffer[troop]
             if entry['delay'] > 0:
                 entry['delay'] -= 1
                 self.troop_delay_buffer[troop] = entry
             else:
-                existing_tracks = [track for track in self.troop_tracker.tracks if track.card_type.lower() == troop.lower() and track.player == entry['player']]
+                existing_tracks = [track for track in self.troop_tracker.tracks if track.card_type.lower(
+                ) == troop.lower() and track.player == entry['player']]
                 stable_tracks = []
                 for track in existing_tracks:
-                    is_about_to_be_removed = hasattr(track,'bg_match_count') and track.bg_match_count >= 2
+                    is_about_to_be_removed = hasattr(
+                        track, 'bg_match_count') and track.bg_match_count >= 2
                     if not is_about_to_be_removed:
                         stable_tracks.append(track)
                 if stable_tracks:
                     del self.troop_delay_buffer[troop]
                 else:
-                    all_changes.append({'troop': troop, 'player': entry['player']})
+                    all_changes.append(
+                        {'troop': troop, 'player': entry['player']})
                     del self.troop_delay_buffer[troop]
-        debug_frame = self.track_arena_changes(frame, all_changes, ally_placed, enemy_placed)
+        debug_frame = self.track_arena_changes(
+            frame, all_changes, ally_placed, enemy_placed)
         detections_for_tracker = []
         if hasattr(self, 'latest_detections') and self.latest_detections:
             detections_for_tracker.extend(self.latest_detections)
         expecting_new_cards = bool(all_changes)
-        active_tracks = self.troop_tracker.update(detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame, expecting_new_cards=expecting_new_cards, diff_detections=getattr(self,'diff_abs_objects',[]))
+        active_tracks = self.troop_tracker.update(detections_for_tracker, frame_number, current_frame=frame, previous_frame=self.previous_full_frame,
+                                                  expecting_new_cards=expecting_new_cards, diff_detections=getattr(self, 'diff_abs_objects', []))
         self.previous_full_frame = frame.copy()
         debug_frame = self.troop_tracker.draw_tracks(debug_frame, frame_number)
         detected_objects = self.troop_tracker.get_active_troops()
         placement_events = []
         # NEW: dataset saver hook
-        self.dataset_saver.handle_frame(frame_number, frame, self.is_game, self.troop_tracker.tracks, getattr(self.troop_tracker,'removed_tracks_for_cleanup',[]))
+        self.dataset_saver.handle_frame(frame_number, frame, self.is_game, self.troop_tracker.tracks, getattr(
+            self.troop_tracker, 'removed_tracks_for_cleanup', []))
         return detected_objects, debug_frame, placement_events
         # REPLACE BLOCK END
 

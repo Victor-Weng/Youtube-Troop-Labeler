@@ -1,29 +1,18 @@
-#!/usr/bin/env python3
-"""
-Simplified Clash Royale Card Detection Tool
-Clean, straightforward implementation focusing on core card detection functionality
-"""
-
-import cv2
-import numpy as np
-import logging
-import json
 import os
+import json
+import logging
+
 import config_new as config
 from detector import TroopDetector
 from video_handler import VideoHandler
 
-# Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
 def main():
-    """Main execution function"""
-    # Initialize components
-    # Load checkpoint if present to resume video index
-    checkpoint_path = os.path.join(config.DATASET_OUTPUT_DIR, 'checkpoint.json')
+    """Main execution function with sequential multi-video processing and resume support."""
+    checkpoint_path = os.path.join(
+        config.DATASET_OUTPUT_DIR, 'checkpoint.json')
     start_video_index = 0
     if os.path.exists(checkpoint_path):
         try:
@@ -35,38 +24,42 @@ def main():
 
     detector = TroopDetector()
     video_handler = VideoHandler()
+    urls = config.YOUTUBE_URLS
+    total = len(urls)
+    if total == 0:
+        logger.error("No URLs to process.")
+        return
 
-    # Provide initial video context to dataset saver (restart current video fresh)
+    # Provide initial context
     if hasattr(detector, 'dataset_saver') and detector.dataset_saver:
-        urls = config.YOUTUBE_URLS
-        if start_video_index < len(urls):
-            detector.dataset_saver.set_video_context(start_video_index, urls[start_video_index])
-        else:
-            detector.dataset_saver.set_video_context(len(urls)-1 if urls else 0, urls[-1] if urls else None)
+        detector.dataset_saver.set_video_context(
+            start_video_index, urls[start_video_index])
 
-    # Process video
     try:
-        # Process only the selected starting URL (current implementation processes first URL only).
-        # If multiple URLs desired sequentially, extend VideoHandler to iterate; for now, we resume at index.
-        if config.YOUTUBE_URLS:
-            # Temporarily replace first URL with the resume target so VideoHandler picks it.
-            # (VideoHandler currently uses YOUTUBE_URLS[0])
-            if start_video_index < len(config.YOUTUBE_URLS):
-                # Rotate list so desired index appears first
-                target = config.YOUTUBE_URLS[start_video_index]
-                remaining = [u for i,u in enumerate(config.YOUTUBE_URLS) if i != start_video_index]
-                config.YOUTUBE_URLS[:] = [target] + remaining
-            video_handler.process_video(detector)
-            # After completion, advance video index and checkpoint
+        for idx in range(start_video_index, total):
+            current_url = urls[idx]
+            logger.info(f"=== Starting video {idx+1}/{total} ===")
             if hasattr(detector, 'dataset_saver') and detector.dataset_saver:
-                next_index = min(start_video_index + 1, len(config.YOUTUBE_URLS))
-                detector.dataset_saver.set_video_context(next_index, config.YOUTUBE_URLS[next_index] if next_index < len(config.YOUTUBE_URLS) else None)
-        else:
-            video_handler.process_video(detector)
+                detector.dataset_saver.set_video_context(idx, current_url)
+            video_handler.process_video(detector, youtube_url=current_url)
+            # Save checkpoint after each completed video
+            try:
+                os.makedirs(config.DATASET_OUTPUT_DIR, exist_ok=True)
+                with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                    json.dump({'video_index': idx+1}, f)
+            except Exception:
+                pass
+            # Progress log
+            interval = getattr(config, 'PROGRESS_VIDEO_INTERVAL', 0)
+            if interval and interval > 0:
+                if (idx + 1) % interval == 0 or (idx + 1) == total:
+                    logger.info(
+                        f"Completed videos: {idx + 1}/{total} ({(idx + 1)/total*100:.1f}%)")
+        logger.info("All videos processed.")
     except KeyboardInterrupt:
         logger.info("Processing interrupted by user")
     except Exception as e:
-        logger.error(f"Error during processing: {e}")
+        logger.error(f"Error during processing loop: {e}")
     finally:
         video_handler.cleanup()
 

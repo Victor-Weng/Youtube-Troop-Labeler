@@ -32,7 +32,8 @@ class TroopTrack:
         try:
             with open('troop_bias_config.json', 'r') as f:
                 troop_config = json.load(f)
-            troop_info = troop_config.get('troops', {}).get(self.card_type.lower(), {})
+            troop_info = troop_config.get('troops', {}).get(
+                self.card_type.lower(), {})
             biased_positions = troop_info.get('biased_positions', [])
             is_building = any(pos == "BUILDING" for pos in biased_positions)
         except Exception:
@@ -46,7 +47,8 @@ class TroopTrack:
             # Optionally, you could append the same position to keep history
             self.positions.append(self.positions[-1])
         else:
-            current_pos = np.array([detection['center_x'], detection['center_y']])
+            current_pos = np.array(
+                [detection['center_x'], detection['center_y']])
             if len(self.positions) >= 2:
                 prev_pos = np.array(
                     [self.positions[-1]['center_x'], self.positions[-1]['center_y']])
@@ -400,13 +402,13 @@ class TroopTrack:
 
                 if bg_analysis['matches_background']:
                     self.bg_match_count += 1
-                    print(
-                        f"Track {self.track_id} BUILDING BACKGROUND MATCH {self.bg_match_count}/{config.BUILDING_BG_MATCH_FRAMES} (color_diff: {bg_analysis['color_diff']:.1f})")
+                    # print(
+                    #     f"Track {self.track_id} BUILDING BACKGROUND MATCH {self.bg_match_count}/{config.BUILDING_BG_MATCH_FRAMES} (color_diff: {bg_analysis['color_diff']:.1f})")
 
                     # Remove building after configurable frames of background matching
                     if self.bg_match_count >= config.BUILDING_BG_MATCH_FRAMES:
-                        print(
-                            f"Track {self.track_id} ({self.card_type}) removed: background match for {self.bg_match_count} frames")
+                        # print(
+                        #     f"Track {self.track_id} ({self.card_type}) removed: background match for {self.bg_match_count} frames")
                         return True
                 else:
                     # Reset counter if building content is detected
@@ -425,8 +427,8 @@ class TroopTrack:
                 if not is_building:
                     # Remove after 4 frames of low movement (but not for buildings)
                     if self.low_activity_count >= config.MIN_ACTIVITY_FRAMES:
-                        print(
-                            f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
+                        # print(
+                        #     f"Track {self.track_id} ({self.card_type}) removed: low movement for {self.low_activity_count} frames")
                         return True
             else:
                 # Reset counter if movement is found
@@ -449,8 +451,8 @@ class TroopTrack:
                 max_duration_frames = (duration * fps)
 
                 if frames_alive > max_duration_frames:
-                    print(
-                        f"Track {self.track_id} ({self.card_type}) exceeded duration: {frames_alive} frames > {max_duration_frames} frames ({duration}s)")
+                    # print(
+                    #     f"Track {self.track_id} ({self.card_type}) exceeded duration: {frames_alive} frames > {max_duration_frames} frames ({duration}s)")
                     return True
 
         return False
@@ -509,44 +511,61 @@ class TroopTracker:
         return tracking_detections
 
     def _diff_overlap(self, boxA, boxB):
-        xA=max(boxA[0],boxB[0]);yA=max(boxA[1],boxB[1]);xB=min(boxA[0]+boxA[2],boxB[0]+boxB[2]);yB=min(boxA[1]+boxA[3],boxB[1]+boxB[3]);
-        inter=max(0,xB-xA)*max(0,yB-yA);ua=boxA[2]*boxA[3]+boxB[2]*boxB[3]-inter
-        return inter/ua if ua>0 else 0.0
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[0]+boxA[2], boxB[0]+boxB[2])
+        yB = min(boxA[1]+boxA[3], boxB[1]+boxB[3])
+        inter = max(0, xB-xA)*max(0, yB-yA)
+        ua = boxA[2]*boxA[3]+boxB[2]*boxB[3]-inter
+        return inter/ua if ua > 0 else 0.0
 
     def diff_should_remove(self, track, diff_boxes):
         import config_new as config
         if not diff_boxes:
-            track._diff_miss=getattr(track,'_diff_miss',0)+1; found=False
+            track._diff_miss = getattr(track, '_diff_miss', 0)+1
+            found = False
         else:
-            box=(track.positions[-1]['x'],track.positions[-1]['y'],track.positions[-1]['w'],track.positions[-1]['h'])
-            found=any(self._diff_overlap(box,(d['x'],d['y'],d['w'],d['h']))>=config.DIFF_OVERLAP_THRESHOLD for d in diff_boxes)
-            track._diff_miss=0 if found else getattr(track,'_diff_miss',0)+1
-        #print(f"[DIFF REMOVE] Track {track.track_id} overlap_found={found if 'found' in locals() else False} miss={track._diff_miss}/{config.DIFF_FRAME_THRESHOLD}")
-        if track._diff_miss>config.DIFF_FRAME_THRESHOLD:
-            #print(f"[DIFF REMOVE] Removing track {track.track_id} (exceeded misses)")
+            box = (track.positions[-1]['x'], track.positions[-1]['y'],
+                   track.positions[-1]['w'], track.positions[-1]['h'])
+            found = any(self._diff_overlap(
+                box, (d['x'], d['y'], d['w'], d['h'])) >= config.DIFF_OVERLAP_THRESHOLD for d in diff_boxes)
+            track._diff_miss = 0 if found else getattr(
+                track, '_diff_miss', 0)+1
+        # print(f"[DIFF REMOVE] Track {track.track_id} overlap_found={found if 'found' in locals() else False} miss={track._diff_miss}/{config.DIFF_FRAME_THRESHOLD}")
+        if track._diff_miss > config.DIFF_FRAME_THRESHOLD:
+            # print(f"[DIFF REMOVE] Removing track {track.track_id} (exceeded misses)")
             return True
         return False
 
     def diff_try_jump(self, track, diff_boxes):
-        import config_new as config, numpy as np
-        if not diff_boxes or not track.positions: return
-        last=track.positions[-1]; box=(last['x'],last['y'],last['w'],last['h']); area=last['w']*last['h']
-        best=None;best_ov=0
+        import config_new as config
+        import numpy as np
+        if not diff_boxes or not track.positions:
+            return
+        last = track.positions[-1]
+        box = (last['x'], last['y'], last['w'], last['h'])
+        area = last['w']*last['h']
+        best = None
+        best_ov = 0
         for d in diff_boxes:
-            ov=self._diff_overlap(box,(d['x'],d['y'],d['w'],d['h']))
-            if ov>=config.DIFF_TRACK_OVERLAP_THRESHOLD:
-                size_sim=min(area,d['area'])/max(area,d['area']) if max(area,d['area'])>0 else 0
-                if size_sim>=config.DIFF_SIZE_THRESHOLD and ov>best_ov:
-                    best=(d, size_sim, ov);best_ov=ov
+            ov = self._diff_overlap(box, (d['x'], d['y'], d['w'], d['h']))
+            if ov >= config.DIFF_TRACK_OVERLAP_THRESHOLD:
+                size_sim = min(area, d['area'])/max(area,
+                                                    d['area']) if max(area, d['area']) > 0 else 0
+                if size_sim >= config.DIFF_SIZE_THRESHOLD and ov > best_ov:
+                    best = (d, size_sim, ov)
+                    best_ov = ov
         if best:
-            d=best[0]
+            d = best[0]
             # jump: create synthetic detection updating track
-            new_det={'x':d['x'],'y':d['y'],'w':d['w'],'h':d['h'],'center_x':d['x']+d['w']/2,'center_y':d['y']+d['h']/2,'area':d['w']*d['h'],'method':'DIFF_JUMP','card_type':track.card_type,'player':track.player,'confidence':1.0}
-            track.update_position(new_det, track.last_seen_frame+1, is_real_detection=True)
-            track.velocity=np.array([0.0,0.0])
+            new_det = {'x': d['x'], 'y': d['y'], 'w': d['w'], 'h': d['h'], 'center_x': d['x']+d['w']/2, 'center_y': d['y']+d['h']/2,
+                       'area': d['w']*d['h'], 'method': 'DIFF_JUMP', 'card_type': track.card_type, 'player': track.player, 'confidence': 1.0}
+            track.update_position(
+                new_det, track.last_seen_frame+1, is_real_detection=True)
+            track.velocity = np.array([0.0, 0.0])
             # print(f"[DIFF JUMP] Track {track.track_id} jumped overlap={best[2]:.2f} size_sim={best[1]:.2f} new_box=({d['x']},{d['y']},{d['w']},{d['h']})")  # silenced
 
-    def update(self, detections: List[Dict], frame_number: int, current_frame: np.ndarray = None, previous_frame: np.ndarray = None, expecting_new_cards: bool = False, diff_detections: List[Dict]=None) -> List[TroopTrack]:
+    def update(self, detections: List[Dict], frame_number: int, current_frame: np.ndarray = None, previous_frame: np.ndarray = None, expecting_new_cards: bool = False, diff_detections: List[Dict] = None) -> List[TroopTrack]:
         """
         Update tracker with new detections from current frame
 
@@ -576,7 +595,8 @@ class TroopTracker:
                 should_remove = True
             # Remove if confidence is low for last 2 positions
             elif len(track.positions) >= 2:
-                last_confidences = [p.get('confidence', 1.0) for p in track.positions[-2:]]
+                last_confidences = [p.get('confidence', 1.0)
+                                    for p in track.positions[-2:]]
                 if any(c < config.TRACKING_CONFIDENCE for c in last_confidences):
                     should_remove = True
 
@@ -593,7 +613,8 @@ class TroopTracker:
             for track in self.tracks:
                 if not track.positions:
                     continue
-                tracked_pos = track.track_position(current_frame, previous_frame, frame_number)
+                tracked_pos = track.track_position(
+                    current_frame, previous_frame, frame_number)
                 if tracked_pos:
                     tracking_detections.append(tracked_pos)
 
@@ -601,7 +622,8 @@ class TroopTracker:
         if expecting_new_cards:
             all_detections = detections + tracking_detections
         else:
-            all_detections = tracking_detections  # ignore raw detections if not expecting new cards
+            # ignore raw detections if not expecting new cards
+            all_detections = tracking_detections
 
         # 4. Standardize detections
         standardized_detections = []
@@ -618,12 +640,14 @@ class TroopTracker:
 
         # 5. Predict & associate
         self._predict_tracks(frame_number)
-        unmatched_detections = self._associate_detections(standardized_detections, frame_number)
+        unmatched_detections = self._associate_detections(
+            standardized_detections, frame_number)
 
         # 6. Create new tracks only if expecting new cards
         if expecting_new_cards:
             for detection in unmatched_detections:
-                new_track = TroopTrack(self.next_track_id, detection, frame_number)
+                new_track = TroopTrack(
+                    self.next_track_id, detection, frame_number)
                 self.tracks.append(new_track)
                 self.next_track_id += 1
 
