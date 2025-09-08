@@ -42,6 +42,7 @@ def main():
             if hasattr(detector, 'dataset_saver') and detector.dataset_saver:
                 detector.dataset_saver.set_video_context(idx, current_url)
             video_handler.process_video(detector, youtube_url=current_url)
+            # Do not flush/close dataset_saver here so shards can accumulate across videos.
             # Save checkpoint after each completed video
             try:
                 os.makedirs(config.DATASET_OUTPUT_DIR, exist_ok=True)
@@ -62,6 +63,12 @@ def main():
         logger.error(f"Error during processing loop: {e}")
     finally:
         video_handler.cleanup()
+        # Finalize dataset saver after all videos
+        try:
+            if hasattr(detector, 'dataset_saver') and detector.dataset_saver:
+                detector.dataset_saver.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

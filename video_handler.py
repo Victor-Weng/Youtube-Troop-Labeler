@@ -18,6 +18,8 @@ class VideoHandler:
         self.logger = logging.getLogger(__name__)
         self.cap = None
         self.frame_count = 0
+        # Global frame counter (continuous across all videos for dataset saving)
+        self.global_frame_number = 0
         self.troop_tracker = TroopTracker()
         # Early stop state
         self.active_streak_start_frame = None
@@ -129,6 +131,12 @@ class VideoHandler:
                     detector.reset_tracks()
                 except Exception:
                     pass
+            # Prepare dataset saver for new video so delayed buffer doesn't retain old frame numbers
+            try:
+                if hasattr(detector, 'dataset_saver') and detector.dataset_saver:
+                    detector.dataset_saver.start_new_video()
+            except Exception:
+                pass
 
             # Determine video source
             if config.TEST_VIDEO_PATH:
@@ -137,6 +145,13 @@ class VideoHandler:
                 self.cap = cv2.VideoCapture(video_source)
             elif config.YOUTUBE_URLS or youtube_url:
                 target_url = youtube_url if youtube_url else config.YOUTUBE_URLS[0]
+                # If previous progress bar didn't end with a newline, add one so the header isn't appended to it.
+                try:
+                    if hasattr(detector, 'dataset_saver') and detector.dataset_saver and getattr(detector.dataset_saver, '_last_progress_len', 0) > 0:
+                        print()
+                        detector.dataset_saver._last_progress_len = 0
+                except Exception:
+                    pass
                 print(f"Processing YouTube video: {target_url}")
                 stream_url = self.get_youtube_stream_url(target_url)
                 if not stream_url:
@@ -186,6 +201,8 @@ class VideoHandler:
                     break
 
                 self.frame_count += 1
+                # Increment global (continuous) frame number used for dataset persistence
+                self.global_frame_number += 1
 
                 # Skip frames based on config
                 if hasattr(config, 'FRAME_SKIP') and self.frame_count % config.FRAME_SKIP != 0:
@@ -250,7 +267,7 @@ class VideoHandler:
                     if process_full and detector.is_game:
                         # Normal processing
                         detected_objects, debug_frame, placement_events = detector.process_frame(
-                            frame, self.frame_count
+                            frame, self.global_frame_number
                         )
                     else:
                         # Either inactive or skipping due to early stop
@@ -339,12 +356,7 @@ class VideoHandler:
                     continue
 
             cv2.destroyAllWindows()
-            # Ensure detector closed at end (if not already)
-            try:
-                if hasattr(detector, 'close'):
-                    detector.close()
-            except Exception:
-                pass
+            # Detector not closed here; keep dataset_saver shard open across videos.
             # self.logger.info(
             #    f"Video processing complete. Processed {self.frame_count} frames.")
 

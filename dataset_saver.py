@@ -51,9 +51,19 @@ class DatasetSaver:
             filled = int(bar_len * progress)
             bar = '[' + '#' * filled + '-' * (bar_len - filled) + ']'
             msg = f"Shard {self.current_shard_index-1:05} {bar} {self.current_shard_count}/{self.shard_max_images} Total:{self.total_images_saved}"
-            print('\r' + msg + ' ' * max(0, self._last_progress_len -
-                  len(msg)), end='', flush=True)
-            self._last_progress_len = len(msg)
+            # Every 50 images, break the line so prior progress isn't lost in some terminals
+            if self.total_images_saved > 0 and self.total_images_saved % 50 == 0:
+                try:
+                    # Finish previous line cleanly
+                    print('\r' + msg + ' ' *
+                          max(0, self._last_progress_len - len(msg)))
+                except Exception:
+                    pass
+                self._last_progress_len = 0
+            else:
+                print('\r' + msg + ' ' * max(0,
+                      self._last_progress_len - len(msg)), end='', flush=True)
+                self._last_progress_len = len(msg)
         except Exception:
             pass
 
@@ -105,6 +115,16 @@ class DatasetSaver:
             _json.dump(data, f, indent=2)
 
     def _write_to_tar(self, filename: str, data: bytes):
+        # Ensure tar file is open (may have been closed if detector.close() was called earlier)
+        try:
+            if self.tar is None or getattr(self.tar, 'closed', False):
+                self._open_new_shard()
+        except Exception:
+            # Attempt a fresh shard regardless
+            try:
+                self._open_new_shard()
+            except Exception:
+                return
         info = tarfile.TarInfo(name=filename)
         info.size = len(data)
         self.tar.addfile(info, io.BytesIO(data))
@@ -231,9 +251,56 @@ class DatasetSaver:
             if oldest['game_active'] and len(effective_tracks) > 0:
                 self._commit_frame(oldest)
 
+    def flush(self):
+        """Force commit of all buffered frames regardless of delay.
+        Ensures no frames are lost at video boundaries. Only commits frames
+        that are game_active and still have effective tracks after invalidation.
+        """
+        try:
+            while self.buffer:
+                rec = self.buffer.popleft()
+                effective_tracks = rec['tracks'] - rec['invalidated']
+                rec['effective_tracks'] = effective_tracks
+                if rec['game_active'] and len(effective_tracks) > 0:
+                    self._commit_frame(rec)
+            # After flush, print a newline so next shard progress starts cleanly
+            try:
+                print()
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def start_new_video(self):
+        """Prepare saver for a new video.
+        Critical: clear delay buffer so frame numbers resetting to small values
+        in the new video don't block the age-based pop condition.
+        """
+        try:
+            self.flush()  # commit anything pending
+        except Exception:
+            pass
+        try:
+            self.buffer.clear()
+        except Exception:
+            pass
+        # Reset progress line length so next progress prints cleanly
+        self._last_progress_len = 0
+
     def close(self):
+        # Flush any remaining buffered frames first
+        try:
+            self.flush()
+        except Exception:
+            pass
         if self.tar is not None:
-            self.tar.close()
+            try:
+                if not getattr(self.tar, 'closed', False):
+                    self.tar.close()
+            except Exception:
+                pass
+        # Mark tar handle as closed so future writes can reopen
+        self.tar = None
         # Final checkpoint on close
         try:
             self._write_checkpoint()
