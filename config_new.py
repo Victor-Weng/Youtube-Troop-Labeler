@@ -87,7 +87,7 @@ YOUTUBE_URLS_FILE = 'youtube_urls.txt'
 # If True, extract playlist in reverse order (bottom to top)
 PLAYLIST_REVERSE = True
 # Max videos to process from playlist (None or 0 means no limit)
-PLAYLIST_MAX_VIDEOS = 400
+PLAYLIST_MAX_VIDEOS = None
 
 
 PROGRESS_VIDEO_INTERVAL = 5  # Log a summary every N completed videos
