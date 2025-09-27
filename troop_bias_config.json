@@ -267,7 +267,7 @@
         "fisherman": {
             "size_rank": 3,
             "aspect_ratio": 1.2,
-            "biased_positions": ["BUILDING"],
+            "biased_positions": [],
             "delay": 0.1,
             "duration": null,
             "average_color": [70, 150, 200]
@@ -275,7 +275,7 @@
         "flying machine": {
             "size_rank": 3,
             "aspect_ratio": 0.8,
-            "biased_positions": ["BUILDING"],
+            "biased_positions": [],
             "delay": 0.1,
             "duration": null,
             "average_color": [150, 110, 80]

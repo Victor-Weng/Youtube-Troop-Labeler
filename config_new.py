@@ -3,10 +3,11 @@ Configuration for Clash Royale Troop Detection Tool
 """
 
 # Video processing settings
+import os as _os
 FRAME_SKIP = 20  # Process every xth frame (60 fps video)
 # FRAME_SKIP_CARD_DETECTION = 60 # Only detects card in hand every 60th frame (1 second) # not used anymore
 RESIZE_FACTOR = 1.0  # Keep original size
-START_TIME_SECONDS = 6  # 247.0  # Start analysis at this time (in seconds)
+START_TIME_SECONDS = 5  # 247.0  # Start analysis at this time (in seconds)
 FPS = 60
 
 DELAY = 0.1  # s per frame delay
@@ -19,7 +20,7 @@ MIN_DETECTION_WIDTH = 75   # Minimum width for detection boxes
 MIN_DETECTION_HEIGHT = 100  # Minimum height for detection boxes
 
 # Detection confidence
-DETECTION_CONFIDENCE = 0.7 # lower to allow for grayed out cards
+DETECTION_CONFIDENCE = 0.7  # lower to allow for grayed out cards
 
 # Detection overlap, anything more than 0.4 of overlap is discounted.
 OVERLAP_THRESHOLD = 0.4
@@ -33,8 +34,8 @@ COOLDOWN_FRAMES = 1
 MOG2_BIAS_BOOST = 4.0  # boost troops on our side by 2x
 # still used incase golden
 GOLDEN = [253, 255, 69]
-ALLY_BLUE = [51, 182, 229] # ally blue to look out for
-ENEMY_RED = [228, 21, 76] # enemy red to look out for
+ALLY_BLUE = [51, 182, 229]  # ally blue to look out for
+ENEMY_RED = [228, 21, 76]  # enemy red to look out for
 
 # MOG2 settings
 HISTORY = 20
@@ -51,16 +52,20 @@ MAX_TRACKED_OBJECTS = 10  # Maximum objects to track simultaneously
 MAX_DISTANCE = 150
 TRACKING_REGION = (33, 304, 648, 779)  # (x, y, w, h) Arena region for tracking
 CARD_BASED_TRACKING = True  # Only track when cards have been played recently
-MIN_ACTIVITY_FRAMES = 1 # Remove tracks after minimal movement in these frames
-MIN_MOVEMENT = 1.0 # Less than 1,0 pixels per frame on average
+MIN_ACTIVITY_FRAMES = 2  # Remove tracks after minimal movement in these frames
+MIN_MOVEMENT = 1.0  # Less than 1,0 pixels per frame on average
 
 # DIFF Tracking Comparison
-DIFF_OVERLAP_THRESHOLD = 0.1 # at least this much overlap with a track is considered valid
-DIFF_FRAME_THRESHOLD = 3 # If more than 2 frames without a diff passing the overlap threshold, remove the track
+# at least this much overlap with a track is considered valid
+DIFF_OVERLAP_THRESHOLD = 0.1
+# If more than 2 frames without a diff passing the overlap threshold, remove the track
+DIFF_FRAME_THRESHOLD = 3
 
 # DIFF Tracking Continuation
-DIFF_SIZE_THRESHOLD = 0.3 # size at least this similar for tracking to jump to this diff
-DIFF_TRACK_OVERLAP_THRESHOLD = 0.3 # At least this much overlap for the tracking to jump to this diff frame AND assuming new track dimensions. This should update all properties associated with the track.
+# size at least this similar for tracking to jump to this diff
+DIFF_SIZE_THRESHOLD = 0.3
+# At least this much overlap for the tracking to jump to this diff frame AND assuming new track dimensions. This should update all properties associated with the track.
+DIFF_TRACK_OVERLAP_THRESHOLD = 0.3
 
 # Troop verification model settings
 # Use verification when candidate scores are within this threshold
@@ -76,10 +81,17 @@ IMAGES_DIR = './output_dataset/images/'
 LABELS_DIR = './output_dataset/labels/'
 SAVE_IMAGES = False  # Set to False to disable image saving during testing
 
-import os as _os
 
 # YouTube URLs file. Each non-empty, non-comment line is a URL.
 YOUTUBE_URLS_FILE = 'youtube_urls.txt'
+# If True, extract playlist in reverse order (bottom to top)
+PLAYLIST_REVERSE = True
+# Max videos to process from playlist (None or 0 means no limit)
+PLAYLIST_MAX_VIDEOS = None
+
+
+PROGRESS_VIDEO_INTERVAL = 5  # Log a summary every N completed videos
+
 
 def _load_youtube_urls(path: str):
     urls = []
@@ -94,10 +106,21 @@ def _load_youtube_urls(path: str):
         pass
     return urls
 
+
 YOUTUBE_URLS = _load_youtube_urls(YOUTUBE_URLS_FILE)
 if not YOUTUBE_URLS:
     # Fallback single URL (can be removed once file is always provided)
-    YOUTUBE_URLS = ["https://www.youtube.com/watch?v=fSRN4bQcoDo&ab_channel=TVroyale"]
+    YOUTUBE_URLS = [
+        "https://www.youtube.com/watch?v=fSRN4bQcoDo&ab_channel=TVroyale"]
+
+# Apply playlist options (reverse & limit) after loading
+try:
+    if PLAYLIST_REVERSE:
+        YOUTUBE_URLS = list(reversed(YOUTUBE_URLS))
+    if 'PLAYLIST_MAX_VIDEOS' in globals() and PLAYLIST_MAX_VIDEOS and PLAYLIST_MAX_VIDEOS > 0:
+        YOUTUBE_URLS = YOUTUBE_URLS[:PLAYLIST_MAX_VIDEOS]
+except Exception:
+    pass
 
 # For testing with local video file, set this path and YOUTUBE_URLS to empty list
 TEST_VIDEO_PATH = None  # "test_video.mp4"
@@ -153,7 +176,8 @@ ENEMY_REGION = (ENEMY_CARD_BAR_X, ENEMY_CARD_BAR_Y,
 # (x, y, w, h) Region where game timer is displayed
 # (x, y, w, h) Region where game timer is displayed
 # (x, y, w, h) Region where game timer is displayed
-ACTIVE_REGION = (26, 1199, 40, 45)  # (x, y, w, h) Region where game timer is displayed
+# (x, y, w, h) Region where game timer is displayed
+ACTIVE_REGION = (26, 1199, 40, 45)
 # RGB color when timer is active (either black i.e. regular or orange i.e. overtime background)
 ACTIVE_COLORS = [(160.67, 46.60, 154.42), (160.67, 70.60, 154.42)]
 # Color difference threshold for detecting active based on elixer
