@@ -8,6 +8,7 @@ from troop_tracker import TroopTracker
 import config_new as config
 import cv2
 from dataset_saver import DatasetSaver
+from katacr_detector import DualYOLODetector
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,17 +16,14 @@ load_dotenv()
 
 class TroopDetector:
     def __init__(self):
-        # ...existing code...
         self.logger = logging.getLogger(__name__)
         self.card_model = self.setup_card_roboflow()
         self.troop_model = self.setup_troop_roboflow()
         from Actions import Actions
         self.actions = Actions()
-        # ...existing code...
         self.card_states = []
         self.ally_unknown_streak = [0]*4
         self.enemy_unknown_streak = [0]*4
-        # ...existing code...
         self.arena_background_color = None
         self.previous_arena_frame = None
         self.current_full_frame = None
